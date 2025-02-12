@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daglig logg</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="{{ url_for('index') }}">Hjem</a> |
+            <a href="{{ url_for('set_goal') }}">Sett Mål</a> |
+            <a href="{{ url_for('logout') }}">Logg ut</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Logg for <span style="color: green;">{{ selected_date }}</span></h1>
+
+        <p>
+            <a href="{{ url_for('day_log', date=(selected_date - timedelta(days=1)).isoformat()) }}">Forrige dag</a> |
+            <a href="{{ url_for('day_log', date=(selected_date + timedelta(days=1)).isoformat()) }}">Neste dag</a>
+        </p>
+
+        <h2>Daglig total:</h2>
+        <ul>
+            <li>Kalorier: {{ day_totals.calories | round(1) }}</li>
+            <li>Proteiner: {{ day_totals.proteins | round(1) }}g</li>
+            <li>Fett: {{ day_totals.fat | round(1) }}g</li>
+            <li>Karbohydrater: {{ day_totals.carbohydrates | round(1) }}g</li>
+        </ul>
+
+        <h2>Måloppnåelse for <span style="color: blue;">{{ goal_type }}</span>:</h2>
+        <ul>
+            <li style="color: {% if '✅' in goal_feedback['Kalorier'] %}green{% else %}red{% endif %};">
+                <strong>Kalorimål:</strong> {{ goal_feedback["Kalorier"] }}
+            </li>
+            <li style="color: {% if '✅' in goal_feedback['Proteiner'] %}green{% else %}red{% endif %};">
+                <strong>Proteinmål:</strong> {{ goal_feedback["Proteiner"] }}
+            </li>
+        </ul>
+
+        <h3 style="color: {% if '✅' in goal_feedback['Total'] %}green{% else %}orange{% endif %};">
+            {{ goal_feedback["Total"] }}
+        </h3>
+
+        <h2>Statistikk:</h2>
+        <p>Du har truffet målene dine <strong>{{ goal_tracking.days_met }}</strong> av <strong>{{ goal_tracking.total_days }}</strong> dager.</p>
+        <progress value="{{ goal_tracking.days_met }}" max="{{ goal_tracking.total_days }}"></progress>
+    </main>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sett Kalorimål</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="{{ url_for('index') }}">Hjem</a> |
+            <a href="{{ url_for('logout') }}">Logg ut</a>
+        </nav>
+    </header>
+    <main>
+        <h1>Sett Kalorimål</h1>
+        <form method="POST" action="{{ url_for('set_goal') }}">
+            <div>
+                <label for="calorie_goal">Daglig kalorimål:</label>
+                <input type="number" step="0.1" id="calorie_goal" name="calorie_goal" 
+                       value="{{ goal.calorie_goal if goal else '' }}" placeholder="For eksempel: 2000">
+            </div>
+            <div>
+                <label for="protein_goal">Daglig proteinmål (g):</label>
+                <input type="number" step="0.1" id="protein_goal" name="protein_goal" 
+                       value="{{ goal.protein_goal if goal else '' }}" placeholder="For eksempel: 150">
+            </div>
+            <div>
+                <label for="fat_goal">Daglig fettmål (g):</label>
+                <input type="number" step="0.1" id="fat_goal" name="fat_goal" 
+                       value="{{ goal.fat_goal if goal else '' }}" placeholder="For eksempel: 70">
+            </div>
+            <div>
+                <label for="carb_goal">Daglig karbohydratmål (g):</label>
+                <input type="number" step="0.1" id="carb_goal" name="carb_goal" 
+                       value="{{ goal.carb_goal if goal else '' }}" placeholder="For eksempel: 250">
+            </div>
+            <div>
+                <label for="goal_type">Velg måltype:</label>
+                <select id="goal_type" name="goal_type">
+                    <option value="" {% if not goal or not goal.goal_type %}selected{% endif %}>Velg</option>
+                    <option value="Cutting" {% if goal and goal.goal_type == 'Cutting' %}selected{% endif %}>Cutting</option>
+                    <option value="Bulking" {% if goal and goal.goal_type == 'Bulking' %}selected{% endif %}>Bulking</option>
+                    <option value="Maingaining" {% if goal and goal.goal_type == 'Maingaining' %}selected{% endif %}>Maingaining</option>
+                </select>
+            </div>
+            <p>Fyll ut tre av de fire feltene, og den siste verdien vil bli beregnet automatisk. Sørg for at verdiene gir mening.</p>
+            <button type="submit">Lagre</button>
+        </form>
+
+        <!-- Ny seksjon for Kroppsvekt -->
+        <section>
+            <h2>Kroppsvekt</h2>
+            <form method="POST" action="{{ url_for('log_weight') }}">
+                <div>
+                    <label for="weight">Kroppsvekt (kg):</label>
+                    <input type="number" step="0.1" id="weight" name="weight" placeholder="For eksempel: 75">
+                </div>
+                <div>
+                    <label for="date">Dato:</label>
+                    <input type="date" id="date" name="date" value="{{ current_date }}">
+                </div>
+                <button type="submit">Loggfør vekt</button>
+            </form>
+            <div>
+                <h3>Vektprogresjon</h3>
+                <canvas id="weightChart" width="400" height="200"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <!-- JavaScript for å generere vektgraf -->
+    <script>
+        const weightData = {{ weight_data | tojson }};
+        const ctx = document.getElementById('weightChart').getContext('2d');
+        const chartData = {
+            labels: weightData.map(entry => entry.date),
+            datasets: [{
+                label: 'Kroppsvekt (kg)',
+                data: weightData.map(entry => entry.weight),
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                fill: true,
+                tension: 0.3
+            }]
+        };
+        const chartOptions = {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Dato'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Vekt (kg)'
+                    }
+                }
+            }
+        };
+        new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: chartOptions
+        });
+    </script>
+</body>
+</html>
