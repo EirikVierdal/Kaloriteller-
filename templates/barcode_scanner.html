@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <title>Strekkodeskanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+</head>
+<body>
+    <h1>Skann strekkode</h1>
+    <div id="scanner-container"></div>
+
+    <div id="produkt-resultat" style="display:none;">
+        <h3 id="produktnavn"></h3>
+        <img id="produktbilde" src="" alt="Produktbilde" width="100">
+
+        <p><strong>Kalorier per 100g:</strong> <span id="kalorier"></span></p>
+        <p><strong>Proteiner per 100g:</strong> <span id="proteiner"></span></p>
+        <p><strong>Fett per 100g:</strong> <span id="fett"></span></p>
+        <p><strong>Karbohydrater per 100g:</strong> <span id="karbohydrater"></span></p>
+        <p><strong>Totalt vekt:</strong> <span id="totalvekt"></span> g</p>
+        <p><strong>Kilde:</strong> <span id="kilde"></span></p>
+
+        <label for="mengde">Mengde (gram):</label>
+        <input type="number" id="mengde" name="mengde" value="100">
+
+        <button onclick="leggTilKaloriteller()">Legg til i kaloriteller</button>
+    </div>
+
+    <script>
+        let gjeldendeProdukt = {};
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-container'),
+                    constraints: { facingMode: "environment" }
+                },
+                decoder: {
+                    readers: ["ean_reader"],
+                    multiple: false
+                },
+                locate: true,
+            }, function(err) {
+                if (err) {
+                    console.error(err);
+                    alert("Kunne ikke starte kamera.");
+                    return;
+                }
+                Quagga.start();
+            });
+        
+            Quagga.onDetected(function(data) {
+                let barcode = data.codeResult.code;
+                Quagga.stop();
+        
+                fetch('/barcode_lookup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ barcode: barcode })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if(result.status === 'success') {
+                        gjeldendeProdukt = result.data; // Lagre produktdata globalt
+                        visProdukt(result.data);
+                    } else {
+                        alert("Produktet ble ikke funnet. Vennligst legg til manuelt.");
+                    }
+                })
+                .catch(err => console.error(err));
+            });
+        });
+        
+        function visProdukt(produkt) {
+            document.getElementById('produktnavn').textContent = produkt.name || produkt.product_name;
+            document.getElementById('produktbilde').src = produkt.image_url || produkt.image || '';
+            document.getElementById('kalorier').textContent = produkt.calories || 'Ukjent';
+            document.getElementById('proteiner').textContent = produkt.protein || 'Ukjent';
+            document.getElementById('fett').textContent = produkt.fat || 'Ukjent';
+            document.getElementById('karbohydrater').textContent = produkt.carbs || 'Ukjent';
+            document.getElementById('totalvekt').textContent = produkt.weight || 'Ukjent';
+            document.getElementById('kilde').textContent = produkt.source || 'Ukjent';
+        
+            document.getElementById('produkt-resultat').style.display = 'block';
+        }
+        
+        function leggTilKaloriteller() {
+            const mengde = document.getElementById('mengde').value;
+        
+            fetch('/legg_til_kaloriteller', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    navn: gjeldendeProdukt.name || gjeldendeProdukt.product_name,
+                    kalorier: gjeldendeProdukt.calories || 0,
+                    protein: gjeldendeProdukt.protein || 0,
+                    fett: gjeldendeProdukt.fat || 0,
+                    karbo: gjeldendeProdukt.carbs || 0,
+                    mengde: mengde
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("Produktet er lagt til i kaloritelleren!");
+                    window.location.href = '/index';
+                } else {
+                    alert("Noe gikk galt ved innlegging.");
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    </script>
+    
