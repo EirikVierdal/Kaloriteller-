@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -7,8 +7,6 @@ import os
 from datetime import date, timedelta, datetime
 from werkzeug.utils import secure_filename
 import json
-
-
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -23,15 +21,40 @@ login_manager.login_view = 'login'
 
 # Models
 
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+    setup_complete = db.Column(db.Boolean, default=False)  # Nytt felt!
+
+    favorites = db.relationship('UserFavorite', back_populates='user')
+    goal = db.relationship('UserGoal', backref='user', uselist=False)
+    weights = db.relationship('WeightLog', backref='user', lazy=True)
+
+class UserGoal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    gender = db.Column(db.String(10), nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    height = db.Column(db.Float, nullable=True)
+    weight = db.Column(db.Float, nullable=True)
+    activity_level = db.Column(db.String(50), nullable=True)
+    goal_type = db.Column(db.String(50), nullable=True)
+    calorie_goal = db.Column(db.Float, nullable=True)
+    protein_goal = db.Column(db.Float, nullable=True)
+    fat_goal = db.Column(db.Float, nullable=True)
+    carb_goal = db.Column(db.Float, nullable=True)
+
 class DayLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Koblet til bruker
-    date = db.Column(db.Date, nullable=False)  # Fjernet unique for å tillate flere brukere samme dato
-    entries = db.relationship('LogEntry', backref='day', lazy=True)  # Relasjon til loggføringer
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    entries = db.relationship('LogEntry', backref='day', lazy=True)
 
 class LogEntry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    day_id = db.Column(db.Integer, db.ForeignKey('day_log.id'), nullable=False)  # Kobling til DayLog
+    day_id = db.Column(db.Integer, db.ForeignKey('day_log.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     weight = db.Column(db.Float, nullable=False)
     calories = db.Column(db.Float, nullable=False)
@@ -39,31 +62,11 @@ class LogEntry(db.Model):
     fat = db.Column(db.Float, nullable=False)
     carbohydrates = db.Column(db.Float, nullable=False)
 
-class UserGoal(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Koblet til bruker
-    calorie_goal = db.Column(db.Float, nullable=True)
-    protein_goal = db.Column(db.Float, nullable=True)
-    fat_goal = db.Column(db.Float, nullable=True)
-    carb_goal = db.Column(db.Float, nullable=True)
-    goal_type = db.Column(db.String(20), nullable=True)
-
-    user = db.relationship('User', backref='goal', uselist=False)
-
 class WeightLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Koblet til bruker
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
     weight = db.Column(db.Float, nullable=False)
-
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
-
-    # Relasjon til brukerens favorittprodukter
-    favorites = db.relationship('UserFavorite', back_populates='user')
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -73,21 +76,18 @@ class Product(db.Model):
     proteins = db.Column(db.Float, nullable=False)
     fat = db.Column(db.Float, nullable=False)
     carbohydrates = db.Column(db.Float, nullable=False)
-    image = db.Column(db.String(200), nullable=True)  
+    image = db.Column(db.String(200), nullable=True)
     created_by_user = db.Column(db.Boolean, default=True)
 
-    # Favoritt-relasjon (mange-til-en)
     favorited_by = db.relationship('UserFavorite', back_populates='product')
-
 
 class UserFavorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Kobling til brukeren
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)  # Kobling til produktet
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
 
-    user = db.relationship('User', back_populates='favorites')  # Relasjon til brukeren
-    product = db.relationship('Product', back_populates='favorited_by')  # Relasjon til produktet
-
+    user = db.relationship('User', back_populates='favorites')
+    product = db.relationship('Product', back_populates='favorited_by')
     
 
 # Login loader
@@ -108,20 +108,29 @@ def register():
         email = request.form.get('email')
         username = request.form.get('username')
         password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if password != confirm_password:
+            flash('Passordene stemmer ikke overens!', 'danger')
+            return redirect(url_for('register'))
 
         if User.query.filter_by(email=email).first():
-            flash('Email already registered!', 'danger')
+            flash('E-post allerede registrert!', 'danger')
             return redirect(url_for('register'))
+
         if User.query.filter_by(username=username).first():
-            flash('Username already taken!', 'danger')
+            flash('Brukernavnet er allerede tatt!', 'danger')
             return redirect(url_for('register'))
 
         new_user = User(email=email, username=username, password=password)
         db.session.add(new_user)
         db.session.commit()
-        flash('Account created! Please log in.', 'success')
+
+        flash('Konto opprettet! Logg inn.', 'success')
         return redirect(url_for('login'))
+
     return render_template('register.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -149,20 +158,22 @@ def logout():
 @app.route('/index', methods=['GET', 'POST'])
 @login_required
 def index():
+    if not current_user.setup_complete:
+        return redirect(url_for('setup_user'))
+
     # Hent valgt dato fra query-parameter eller sesjon, ellers bruk dagens dato
     date_param = request.args.get('date', None)
     if date_param:
         selected_date = datetime.strptime(date_param, '%Y-%m-%d').date()
-        session['selected_date'] = selected_date.isoformat()  # Lagre valgt dato i sesjonen
+        session['selected_date'] = selected_date.isoformat()
     else:
-        # Bruk dato fra sesjonen hvis tilgjengelig
         selected_date = session.get('selected_date', date.today().isoformat())
         selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
 
     # Finn eller opprett en logg for den valgte datoen
     day_log = DayLog.query.filter_by(date=selected_date, user_id=current_user.id).first()
     if not day_log:
-        day_log = DayLog(date=selected_date, user_id=current_user.id)  # Angi user_id
+        day_log = DayLog(date=selected_date, user_id=current_user.id)
         db.session.add(day_log)
         db.session.commit()
 
@@ -207,9 +218,6 @@ def index():
         goal_type_display=goal_type_display,
         timedelta=timedelta
     )
-
-
-
 
 @app.route('/log_weight', methods=['POST'])
 @login_required
@@ -314,6 +322,78 @@ def set_goal():
     # Render siden for å sette mål
     return render_template('set_goal.html', goal=user_goal, weight_data=weight_data)
 
+# Login Manager
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Beregningsfunksjoner for popupen
+def calculate_bmr(gender, weight, height, age):
+    if gender.lower() == 'mann':
+        return 10 * weight + 6.25 * height - 5 * age + 5
+    else:
+        return 10 * weight + 6.25 * height - 5 * age - 161
+
+def calculate_tdee(bmr, activity_level):
+    multipliers = {
+        'Lite aktiv': 1.375,
+        'Moderat aktiv': 1.55,
+        'Veldig aktiv': 1.725
+    }
+    return bmr * multipliers.get(activity_level, 1.2)
+
+def adjust_for_goal(tdee, weight, goal_type):
+    if goal_type.lower() == 'cutting':
+        daily_calories = tdee - 500
+    elif goal_type.lower() == 'bulking':
+        daily_calories = tdee + 500
+    else:
+        daily_calories = tdee
+
+    protein = weight * 2
+    fat = weight * 0.8
+    carbs = (daily_calories - (protein * 4 + fat * 9)) / 4
+
+    return daily_calories, protein, fat, carbs
+
+# Rute for førstegangsoppsett-popup
+@app.route('/setup_user', methods=['GET', 'POST'])
+@login_required
+def setup_user():
+    if request.method == 'POST':
+        data = request.json
+        gender = data['gender']
+        age = data['age']
+        height = data['height']
+        weight = data['weight']
+        activity_level = data['activity_level']
+        goal_type = data['goal_type']
+
+        bmr = calculate_bmr(gender, weight, height, age)
+        tdee = calculate_tdee(bmr, activity_level)
+        calories, protein, fat, carbs = adjust_for_goal(tdee, weight, goal_type)
+
+        user_goal = UserGoal(
+            user_id=current_user.id,
+            gender=gender,
+            age=age,
+            height=height,
+            weight=weight,
+            activity_level=activity_level,
+            goal_type=goal_type,
+            calorie_goal=calories,
+            protein_goal=protein,
+            fat_goal=fat,
+            carb_goal=carbs
+        )
+
+        db.session.add(user_goal)
+        current_user.setup_complete = True
+        db.session.commit()
+
+        return jsonify({"success": True})
+
+    return render_template('setup_popup.html')
 
 @app.route('/add_favorite_from_log/<int:entry_id>', methods=['POST'])
 @login_required

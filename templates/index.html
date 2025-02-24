@@ -13,6 +13,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    {% if not current_user.setup_complete %}
+    {% include 'setup_popup.html' %}
+{% endif %}
+
     <header>
         <nav>
             <a href="{{ url_for('index') }}">Hjem</a> |

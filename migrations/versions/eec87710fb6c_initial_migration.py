@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: a2ef8c144b81
+Revision ID: eec87710fb6c
 Revises: 
-Create Date: 2025-02-04 14:49:17.788897
+Create Date: 2025-02-24 10:07:34.508475
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a2ef8c144b81'
+revision = 'eec87710fb6c'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -27,6 +27,7 @@ def upgrade():
     sa.Column('fat', sa.Float(), nullable=False),
     sa.Column('carbohydrates', sa.Float(), nullable=False),
     sa.Column('image', sa.String(length=200), nullable=True),
+    sa.Column('created_by_user', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('user',
@@ -34,6 +35,7 @@ def upgrade():
     sa.Column('email', sa.String(length=150), nullable=False),
     sa.Column('username', sa.String(length=150), nullable=False),
     sa.Column('password', sa.String(length=150), nullable=False),
+    sa.Column('setup_complete', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
@@ -56,11 +58,16 @@ def upgrade():
     op.create_table('user_goal',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('gender', sa.String(length=10), nullable=True),
+    sa.Column('age', sa.Integer(), nullable=True),
+    sa.Column('height', sa.Float(), nullable=True),
+    sa.Column('weight', sa.Float(), nullable=True),
+    sa.Column('activity_level', sa.String(length=50), nullable=True),
+    sa.Column('goal_type', sa.String(length=50), nullable=True),
     sa.Column('calorie_goal', sa.Float(), nullable=True),
     sa.Column('protein_goal', sa.Float(), nullable=True),
     sa.Column('fat_goal', sa.Float(), nullable=True),
     sa.Column('carb_goal', sa.Float(), nullable=True),
-    sa.Column('goal_type', sa.String(length=20), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
