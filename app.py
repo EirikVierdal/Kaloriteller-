@@ -8,6 +8,7 @@ from datetime import date, timedelta, datetime
 from werkzeug.utils import secure_filename
 import json
 
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.secret_key = 'your_secret_key'
@@ -18,6 +19,11 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+if os.getenv('DATABASE_URL'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')  # Render
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dinlokaledatabase.db'  # Lokalt
 
 # Models
 
