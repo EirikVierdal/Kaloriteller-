@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,36 +13,40 @@
             <a href="{{ url_for('logout') }}">Logg ut</a>
         </nav>
     </header>
+
     <main>
         <h1>Produkter funnet:</h1>
+
         {% if produkter %}
             <ul class="product-list">
                 {% for produkt in produkter %}
                     <li class="product-item">
                         <strong>{{ produkt.name }}</strong><br>
-                        {% if produkt.source == "Lokal Database" and produkt.image_url %}
-                            <!-- Hvis bildet er fra brukerens opplastning -->
-                            <img src="{{ produkt.image_url }}" alt="{{ produkt.name }}" width="100">
-                        {% elif produkt.image_url %}
-                            <!-- Hvis bildet er fra Open Food Facts -->
+
+                        {% if produkt.image_url %}
                             <img src="{{ produkt.image_url }}" alt="{{ produkt.name }}" width="100">
                         {% else %}
-                            <em>Ingen bilde tilgjengelig</em>
-                        {% endif %}<br>
+                            <img src="{{ url_for('static', filename='default-image.png') }}" alt="Ingen bilde tilgjengelig" width="100" class="default-image">
+                        {% endif %}
+
+                        <br>
                         <strong>Kalorier per 100g:</strong> {{ produkt.calories_per_100g if produkt.calories_per_100g != "Ukjent" else "Ukjent" }}<br>
                         <strong>Proteiner per 100g:</strong> {{ produkt.proteins_per_100g if produkt.proteins_per_100g != "Ukjent" else "Ukjent" }}<br>
                         <strong>Fett per 100g:</strong> {{ produkt.fat_per_100g if produkt.fat_per_100g != "Ukjent" else "Ukjent" }}<br>
                         <strong>Karbohydrater per 100g:</strong> {{ produkt.carbohydrates_per_100g if produkt.carbohydrates_per_100g != "Ukjent" else "Ukjent" }}<br>
                         <strong>Totalt vekt:</strong> {{ produkt.weight if produkt.weight != "Ukjent" else "Ukjent" }} g<br>
                         <strong>Kilde:</strong> {{ produkt.source }}<br>
+
                         <form method="POST" action="{{ url_for('add_to_tracker') }}">
                             <input type="hidden" name="name" value="{{ produkt.name }}">
                             <input type="hidden" name="calories_per_100g" value="{{ produkt.calories_per_100g }}">
                             <input type="hidden" name="proteins_per_100g" value="{{ produkt.proteins_per_100g }}">
                             <input type="hidden" name="fat_per_100g" value="{{ produkt.fat_per_100g }}">
                             <input type="hidden" name="carbohydrates_per_100g" value="{{ produkt.carbohydrates_per_100g }}">
-                            <label for="input_weight">Mengde (gram):</label>
-                            <input type="number" name="weight" id="input_weight" value="100" step="1" required>
+
+                            <label for="input_weight_{{ loop.index }}">Mengde (gram):</label>
+                            <input type="number" name="weight" id="input_weight_{{ loop.index }}" value="100" step="1" min="1" required>
+                            
                             <button type="submit">Legg til i kaloriteller</button>
                         </form>
                     </li>

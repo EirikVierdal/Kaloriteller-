@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy 
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import requests
@@ -7,6 +7,9 @@ import os
 from datetime import date, timedelta, datetime
 from werkzeug.utils import secure_filename
 import json
+from sqlalchemy.orm import Session
+
+KASSAL_API_KEY = os.getenv("KASSAL_API_KEY", "RSoYsw9xCYwH5pPWh3zsWYSw50gi9nLM79MIz1xv")
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -456,9 +459,9 @@ def toggle_favorite(product_id):
 @app.route('/search', methods=['POST'])
 @login_required
 def search():
-    query = request.form.get('search', '').strip()  # Hent søkeord fra brukeren
+    query = request.form.get('search', '').strip()
 
-    # Hent lokale produkter (brukerdefinerte)
+    # 1️⃣ **Lokal database (Prioritet 1 - Brukerens egne produkter)**
     local_products = Product.query.filter(Product.name.ilike(f"%{query}%")).all()
     formatted_local_products = [
         {
@@ -468,67 +471,107 @@ def search():
             "proteins_per_100g": (product.proteins / product.weight) * 100 if product.weight > 0 else "Ukjent",
             "fat_per_100g": (product.fat / product.weight) * 100 if product.weight > 0 else "Ukjent",
             "carbohydrates_per_100g": (product.carbohydrates / product.weight) * 100 if product.weight > 0 else "Ukjent",
-            "weight": product.weight if product.weight > 0 else "Ukjent",  # Totalvekt
+            "weight": product.weight if product.weight > 0 else "Ukjent",
             "image_url": url_for('static', filename=product.image) if product.image else None,
             "source": "Lokal Database",
-            "is_favorite": product.id in [fav.product_id for fav in current_user.favorites]  # Sjekk om produktet er i favoritter
+            "priority": 1,  # PRIORITET 1
+            "is_favorite": product.id in [fav.product_id for fav in current_user.favorites]
         }
         for product in local_products
     ]
 
-    # Hent produkter fra Open Food Facts
-    def fetch_open_food_facts_products(query, page_size=10):
-        url = "https://world.openfoodfacts.org/cgi/search.pl"
-        params = {
-            "action": "process",
-            "search_terms": query,
-            "json": "true",
-            "page_size": page_size,
-            "countries_tags": "norway"  # Begrens søk til Norge
-        }
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
+    # 2️⃣ **Kassal.app (Prioritet 2 - Norske dagligvarer)**
+    kassal_products = fetch_kassal_products(query)
+    for p in kassal_products:
+        p["priority"] = 2  # PRIORITET 2
 
-            # Debugging: Print API-responsen for å se om det kommer riktig inn
-            print("Open Food Facts Response:", json.dumps(data, indent=4))
-
-            # Hent produkter og sørg for at de ikke er tomme
-            if 'products' not in data or not data['products']:
-                print("Ingen produkter funnet i API-responsen.")
-                return []
-
-            return [
-                {
-                    "id": None,  # Open Food Facts produkter har ikke en unik ID i vår database
-                    "name": product.get("product_name", "Ukjent produkt"),
-                    "calories_per_100g": product.get("nutriments", {}).get("energy-kcal_100g", "Ukjent"),
-                    "proteins_per_100g": product.get("nutriments", {}).get("proteins_100g", "Ukjent"),
-                    "fat_per_100g": product.get("nutriments", {}).get("fat_100g", "Ukjent"),
-                    "carbohydrates_per_100g": product.get("nutriments", {}).get("carbohydrates_100g", "Ukjent"),
-                    "weight": product.get("product_quantity", "Ukjent"),  # Totalvekt
-                    "image_url": product.get("image_url", None),
-                    "source": "Open Food Facts",
-                    "is_favorite": False  # Marker produkter som ikke er i favoritter ennå
-                }
-                for product in data["products"]
-                if product.get("product_name")  # Bare produkter med navn
-            ]
-        except requests.exceptions.RequestException as e:
-            print(f"Feil ved forespørsel til Open Food Facts: {e}")
-            flash("Kunne ikke hente resultater fra Open Food Facts.", "danger")
-            return []
-
+    # 3️⃣ **Open Food Facts (Prioritet 3 - Internasjonal fallback)**
     off_products = fetch_open_food_facts_products(query)
+    for p in off_products:
+        p["priority"] = 3  # PRIORITET 3
 
-    # Kombiner lokale produkter og produkter fra Open Food Facts
-    combined_products = formatted_local_products + off_products
+    # 🏆 **Tving prioritert rekkefølge**
+    combined_products = formatted_local_products + kassal_products + off_products
 
-    # Sorter produktene alfabetisk etter navn
-    combined_products.sort(key=lambda x: x["name"] or "")
+    # 📌 **Sorter etter PRIORITET først, deretter alfabetisk**
+    combined_products.sort(key=lambda x: (x["priority"], x["name"] or ""))
 
     return render_template('sok_resultat.html', produkter=combined_products)
+
+
+def fetch_open_food_facts_products(query, page_size=10):
+    url = "https://world.openfoodfacts.org/cgi/search.pl"
+    params = {
+        "action": "process",
+        "search_terms": query,
+        "json": "true",
+        "page_size": page_size,
+        "countries_tags": "norway"
+    }
+    try:
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        return [
+            {
+                "id": None,
+                "name": product.get("product_name", "Ukjent produkt"),
+                "calories_per_100g": product.get("nutriments", {}).get("energy-kcal_100g", "Ukjent"),
+                "proteins_per_100g": product.get("nutriments", {}).get("proteins_100g", "Ukjent"),
+                "fat_per_100g": product.get("nutriments", {}).get("fat_100g", "Ukjent"),
+                "carbohydrates_per_100g": product.get("nutriments", {}).get("carbohydrates_100g", "Ukjent"),
+                "weight": product.get("product_quantity", "Ukjent"),
+                "image_url": product.get("image_url", None),
+                "source": "Open Food Facts",
+                "is_favorite": False
+            }
+            for product in data.get("products", []) if product.get("product_name")
+        ]
+    except requests.exceptions.RequestException as e:
+        print(f"Feil ved forespørsel til Open Food Facts: {e}")  # Debugging
+        flash("Kunne ikke hente resultater fra Open Food Facts.", "danger")
+        return []
+
+
+def fetch_kassal_products(query, page_size=10):
+    url = "https://kassal.app/api/v1/products"
+    params = {"search": query, "size": page_size}
+    headers = {"Authorization": f"Bearer {KASSAL_API_KEY}"}
+
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        # Sjekk om vi får produkter
+        if "data" not in data or not data["data"]:
+            print("Ingen produkter funnet i Kassal API")
+            return []
+
+        kassal_products = []
+        for product in data["data"]:
+            nutrition = {n["code"]: n["amount"] for n in product.get("nutrition", [])}
+
+            kassal_products.append({
+                "id": None,
+                "name": product.get("name", "Ukjent produkt"),
+                "calories_per_100g": nutrition.get("energi_kcal", "Ukjent"),
+                "proteins_per_100g": nutrition.get("protein", "Ukjent"),
+                "fat_per_100g": nutrition.get("fett_totalt", "Ukjent"),
+                "carbohydrates_per_100g": nutrition.get("karbohydrater", "Ukjent"),
+                "weight": product.get("weight") if product.get("weight") else "Ukjent",
+                "image_url": product.get("image") if product.get("image") else None,
+                "source": "Kassal.app",
+                "is_favorite": False
+            })
+
+        return kassal_products
+
+    except requests.exceptions.RequestException as e:
+        print(f"Feil ved forespørsel til Kassal API: {e}")
+        return []
+
 
 
 @app.route('/add_favorite_open_food', methods=['POST'])
@@ -906,7 +949,7 @@ def day_log(date):
     )
 
 
-KASSALAPP_API_KEY = "LPqw5vGJeRBBEMns35N9qCyHYvvMbpDcqQTIwkPJ"
+KASSALAPP_API_KEY = "RSoYsw9xCYwH5pPWh3zsWYSw50gi9nLM79MIz1xv"
 
 @app.route('/legg_til_kaloriteller', methods=['POST'])
 @login_required
