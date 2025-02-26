@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 KASSAL_API_KEY = os.getenv("KASSAL_API_KEY", "RSoYsw9xCYwH5pPWh3zsWYSw50gi9nLM79MIz1xv")
 
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.secret_key = 'your_secret_key'
@@ -21,6 +22,14 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///din_lokale_db.db')
+
+
+if os.getenv('DATABASE_URL'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')  # Render
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dinlokaledatabase.db'  # Lokalt
 
 # Models
 
