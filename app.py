@@ -8,28 +8,23 @@ from datetime import date, timedelta, datetime
 from werkzeug.utils import secure_filename
 import json
 from sqlalchemy.orm import Session
+import pprint
 
 KASSAL_API_KEY = os.getenv("KASSAL_API_KEY", "RSoYsw9xCYwH5pPWh3zsWYSw50gi9nLM79MIz1xv")
-
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.secret_key = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///products.db'
+
+# *Oppdatert PostgreSQL database URI*
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Eirik2006@localhost:5432/Kaloriteller")
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///din_lokale_db.db')
-
-
-if os.getenv('DATABASE_URL'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')  # Render
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dinlokaledatabase.db'  # Lokalt
 
 # Models
 
@@ -88,10 +83,20 @@ class Product(db.Model):
     proteins = db.Column(db.Float, nullable=False)
     fat = db.Column(db.Float, nullable=False)
     carbohydrates = db.Column(db.Float, nullable=False)
-    image = db.Column(db.String(200), nullable=True)
+    image = db.Column(db.String(200), nullable=True)  # Lagrer bildestien
     created_by_user = db.Column(db.Boolean, default=True)
+    popularity = db.Column(db.Integer, default=0)
 
     favorited_by = db.relationship('UserFavorite', back_populates='product')
+
+    def get_image_url(self):
+        """ Returnerer riktig bilde-URL """
+        if self.image and self.image.startswith("http"):  # Eksternt bilde
+            return self.image
+        elif self.image:  # Lokalt bilde
+            return url_for('static', filename=f"uploads/{self.image}")
+        return url_for('static', filename="uploads/default_image.png")  # Standardbilde
+
 
 class UserFavorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -100,7 +105,37 @@ class UserFavorite(db.Model):
 
     user = db.relationship('User', back_populates='favorites')
     product = db.relationship('Product', back_populates='favorited_by')
-    
+
+class UserLoggedProduct(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    times_selected = db.Column(db.Integer, default=1)
+    last_selected = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref="logged_products")
+    product = db.relationship("Product", backref="logged_by_users")
+
+class SelectedProduct(db.Model):
+    __tablename__ = 'selected_products'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_name = db.Column(db.String(255), nullable=False)
+    calories_per_100g = db.Column(db.Float, nullable=True)
+    proteins_per_100g = db.Column(db.Float, nullable=True)
+    fat_per_100g = db.Column(db.Float, nullable=True)
+    carbohydrates_per_100g = db.Column(db.Float, nullable=True)
+    weight = db.Column(db.Float, nullable=True)
+    image_url = db.Column(db.String(255), nullable=True)
+    times_selected = db.Column(db.Integer, default=1)
+    last_selected = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='selected_products')
+
+    def __repr__(self):
+        return f"<SelectedProduct {self.product_name} (User {self.user_id})>"
+
 
 # Login loader
 @login_manager.user_loader
@@ -166,6 +201,7 @@ def logout():
     logout_user()
     flash('Logged out successfully!', 'info')
     return redirect(url_for('login'))
+
 
 @app.route('/index', methods=['GET', 'POST'])
 @login_required
@@ -465,47 +501,126 @@ def toggle_favorite(product_id):
     return redirect(request.referrer or url_for('index'))
 
 
+
+
 @app.route('/search', methods=['POST'])
 @login_required
 def search():
     query = request.form.get('search', '').strip()
 
-    # 1️⃣ **Lokal database (Prioritet 1 - Brukerens egne produkter)**
-    local_products = Product.query.filter(Product.name.ilike(f"%{query}%")).all()
-    formatted_local_products = [
+    # 🔍 Hent produkter fra selected_products-tabellen
+    selected_products = (
+        db.session.query(SelectedProduct)
+        .filter(SelectedProduct.user_id == current_user.id, SelectedProduct.product_name.ilike(f"%{query}%"))
+        .order_by(SelectedProduct.times_selected.desc(), SelectedProduct.last_selected.desc())
+        .all()
+    )
+
+    formatted_selected_products = [
+        {
+            "id": product.id,
+            "name": product.product_name,
+            "calories_per_100g": product.calories_per_100g if product.calories_per_100g else "Ukjent",
+            "proteins_per_100g": product.proteins_per_100g if product.proteins_per_100g else "Ukjent",
+            "fat_per_100g": product.fat_per_100g if product.fat_per_100g else "Ukjent",
+            "carbohydrates_per_100g": product.carbohydrates_per_100g if product.carbohydrates_per_100g else "Ukjent",
+            "image_url": product.image_url if product.image_url else url_for('static', filename="uploads/default_image.png"),
+            "source": "Tidligere valgt",
+            "priority": 0
+        }
+        for product in selected_products
+    ]
+
+    # 🔍 Hent favorittprodukter
+    favorite_products = (
+        db.session.query(Product)
+        .join(UserFavorite, UserFavorite.product_id == Product.id)
+        .filter(UserFavorite.user_id == current_user.id, Product.name.ilike(f"%{query}%"))
+        .all()
+    )
+
+    formatted_favorite_products = [
         {
             "id": product.id,
             "name": product.name,
-            "calories_per_100g": (product.calories / product.weight) * 100 if product.weight > 0 else "Ukjent",
-            "proteins_per_100g": (product.proteins / product.weight) * 100 if product.weight > 0 else "Ukjent",
-            "fat_per_100g": (product.fat / product.weight) * 100 if product.weight > 0 else "Ukjent",
-            "carbohydrates_per_100g": (product.carbohydrates / product.weight) * 100 if product.weight > 0 else "Ukjent",
-            "weight": product.weight if product.weight > 0 else "Ukjent",
-            "image_url": url_for('static', filename=product.image) if product.image else None,
-            "source": "Lokal Database",
-            "priority": 1,  # PRIORITET 1
-            "is_favorite": product.id in [fav.product_id for fav in current_user.favorites]
+            "calories_per_100g": (product.calories / product.weight) * 100 if product.weight and product.calories else "Ukjent",
+            "proteins_per_100g": (product.proteins / product.weight) * 100 if product.weight and product.proteins else "Ukjent",
+            "fat_per_100g": (product.fat / product.weight) * 100 if product.weight and product.fat else "Ukjent",
+            "carbohydrates_per_100g": (product.carbohydrates / product.weight) * 100 if product.weight and product.carbohydrates else "Ukjent",
+            "image_url": product.get_image_url(),  # 🔥 Bruker metoden fra Product-modellen
+            "source": "Favorittprodukt",
+            "priority": 1
         }
-        for product in local_products
+        for product in favorite_products
     ]
 
-    # 2️⃣ **Kassal.app (Prioritet 2 - Norske dagligvarer)**
+    # 🔍 Hent populære produkter
+    popular_products = (
+        db.session.query(Product)
+        .filter(Product.name.ilike(f"%{query}%"))
+        .order_by(Product.popularity.desc())
+        .all()
+    )
+
+    formatted_popular_products = [
+        {
+            "id": product.id,
+            "name": product.name,
+            "calories_per_100g": (product.calories / product.weight) * 100 if product.weight and product.calories else "Ukjent",
+            "proteins_per_100g": (product.proteins / product.weight) * 100 if product.weight and product.proteins else "Ukjent",
+            "fat_per_100g": (product.fat / product.weight) * 100 if product.weight and product.fat else "Ukjent",
+            "carbohydrates_per_100g": (product.carbohydrates / product.weight) * 100 if product.weight and product.carbohydrates else "Ukjent",
+            "image_url": product.get_image_url(),  # 🔥 Bruker metoden fra Product-modellen
+            "source": "Populært produkt",
+            "priority": 2
+        }
+        for product in popular_products
+    ]
+
+    # 🔍 Hent produkter fra Kassal API
     kassal_products = fetch_kassal_products(query)
     for p in kassal_products:
-        p["priority"] = 2  # PRIORITET 2
+        p["priority"] = 3
 
-    # 3️⃣ **Open Food Facts (Prioritet 3 - Internasjonal fallback)**
+    # 🔍 Hent produkter fra Open Food Facts API
     off_products = fetch_open_food_facts_products(query)
     for p in off_products:
-        p["priority"] = 3  # PRIORITET 3
+        p["priority"] = 4
 
-    # 🏆 **Tving prioritert rekkefølge**
-    combined_products = formatted_local_products + kassal_products + off_products
+    # 🔄 Kombiner alle resultater
+    combined_products = (
+        formatted_selected_products +  
+        formatted_favorite_products +  
+        formatted_popular_products +  
+        kassal_products +  
+        off_products
+    )
 
-    # 📌 **Sorter etter PRIORITET først, deretter alfabetisk**
-    combined_products.sort(key=lambda x: (x["priority"], x["name"] or ""))
+    # 🔥 Debug: Skriv ut søkeresultatene før duplikatfjerning
+    print("\n🔍 **SØKERESULTATER (før duplikatfjerning og sortering):**")
+    pprint.pprint(combined_products)
 
-    return render_template('sok_resultat.html', produkter=combined_products)
+    # ✅ Fjern duplikater (bruker første prioritet)
+    unique_products = {}
+    for product in combined_products:
+        name_key = product["name"].lower()
+        if name_key in unique_products:
+            if product["priority"] < unique_products[name_key]["priority"]:
+                unique_products[name_key] = product
+        else:
+            unique_products[name_key] = product
+
+    final_products = list(unique_products.values())
+
+    # 📌 Sorter resultatene basert på prioritet og alfabetisk rekkefølge
+    final_products.sort(key=lambda x: (x["priority"], x["name"]))
+
+    # 🔥 Debug: Skriv ut søkeresultatene etter duplikatfjerning
+    print("\n✅ **SØKERESULTATER (etter duplikatfjerning og sortering):**")
+    pprint.pprint(final_products)
+
+    return render_template('sok_resultat.html', produkter=final_products)
+
 
 
 def fetch_open_food_facts_products(query, page_size=10):
@@ -626,16 +741,16 @@ def add_favorite_open_food():
 @app.route('/add_to_tracker', methods=['POST'])
 @login_required
 def add_to_tracker():
-    print("Received form data:", request.form)  # Debugging
+    print("🔍 Received form data:", request.form)  # Debugging
 
     name = request.form.get('name', 'Ukjent produkt').strip()
-    weight = request.form.get('weight', '0').strip()  # Sørger for at det er en streng
+    weight = request.form.get('weight', '0').strip()
     calories_per_100g = request.form.get('calories_per_100g', '0').strip()
     proteins_per_100g = request.form.get('proteins_per_100g', '0').strip()
     fat_per_100g = request.form.get('fat_per_100g', '0').strip()
     carbohydrates_per_100g = request.form.get('carbohydrates_per_100g', '0').strip()
+    image_url = request.form.get('image_url', '')
 
-    # Konverter verdier til float og håndter feil
     try:
         weight = float(weight) if weight else 0
         calories_per_100g = float(calories_per_100g) if calories_per_100g else 0
@@ -646,18 +761,15 @@ def add_to_tracker():
         flash("Ugyldige verdier oppgitt!", "danger")
         return redirect(url_for('index'))
 
-    # Hindre at vekten er null eller negativ
     if weight <= 0:
         flash("Vekten må være større enn null!", "danger")
         return redirect(url_for('index'))
 
-    # Beregn totaler basert på valgt mengde
     total_calories = round((calories_per_100g * weight) / 100, 1)
     total_proteins = round((proteins_per_100g * weight) / 100, 1)
     total_fat = round((fat_per_100g * weight) / 100, 1)
     total_carbohydrates = round((carbohydrates_per_100g * weight) / 100, 1)
 
-    # Hent valgt dato fra sesjonen, eller bruk dagens dato som fallback
     selected_date = session.get('selected_date', date.today().isoformat())
     try:
         selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
@@ -665,36 +777,116 @@ def add_to_tracker():
         flash("Ugyldig datoformat. Bruker dagens dato i stedet.", "danger")
         selected_date = date.today()
 
-    # Finn eller opprett logg for den valgte datoen knyttet til brukeren
+    print(f"📅 Valgt dato: {selected_date}")
+
+    # Finn eller opprett logg for den valgte datoen
     day_log = DayLog.query.filter_by(date=selected_date, user_id=current_user.id).first()
     if not day_log:
         day_log = DayLog(date=selected_date, user_id=current_user.id)
         db.session.add(day_log)
+        db.session.commit()
 
-    # Legg til loggføring
-    log_entry = LogEntry(
-        day=day_log,
-        name=name,
-        weight=weight,
-        calories=total_calories,
-        proteins=total_proteins,
-        fat=total_fat,
-        carbohydrates=total_carbohydrates
-    )
-    db.session.add(log_entry)
+    print(f"📝 DayLog ID: {day_log.id}, Bruker: {current_user.id}, Dato: {day_log.date}")
+
+    # Sjekk om produktet allerede er lagt til i kaloritelleren
+    existing_log_entry = LogEntry.query.filter_by(day_id=day_log.id, name=name).first()
+
+    if existing_log_entry:
+        print(f"🟢 Oppdaterer eksisterende loggføring for {name}")
+        existing_log_entry.weight += weight
+        existing_log_entry.calories += total_calories
+        existing_log_entry.proteins += total_proteins
+        existing_log_entry.fat += total_fat
+        existing_log_entry.carbohydrates += total_carbohydrates
+    else:
+        print(f"🆕 Oppretter ny loggføring for {name}")
+        new_log_entry = LogEntry(
+            day_id=day_log.id,
+            name=name,
+            weight=weight,
+            calories=total_calories,
+            proteins=total_proteins,
+            fat=total_fat,
+            carbohydrates=total_carbohydrates
+        )
+        db.session.add(new_log_entry)
+
+    # 🔥 Finn produktet i `Product`-tabellen
+    product = Product.query.filter_by(name=name).first()
+
+    if product:
+        print(f"🛠️ Sjekker produkt: {product.name}, ID: {product.id}")
+
+        # Oppdater `UserLoggedProduct`
+        existing_logged_product = UserLoggedProduct.query.filter_by(
+            user_id=current_user.id, product_id=product.id
+        ).first()
+
+        if existing_logged_product:
+            print(f"🔄 Oppdaterer UserLoggedProduct: {product.name}")
+            existing_logged_product.times_selected += 1
+            existing_logged_product.last_selected = datetime.utcnow()
+        else:
+            print(f"➕ Legger til i UserLoggedProduct: {product.name}")
+            new_logged_product = UserLoggedProduct(
+                user_id=current_user.id,
+                product_id=product.id,
+                times_selected=1,
+                last_selected=datetime.utcnow()
+            )
+            db.session.add(new_logged_product)
+
+        # Sjekk om produktet er et favorittprodukt
+        is_favorite = UserFavorite.query.filter_by(user_id=current_user.id, product_id=product.id).first()
+        if is_favorite:
+            print(f"⭐ {product.name} er et favorittprodukt!")
+
+    else:
+        print(f"⚠️ Produktet '{name}' finnes ikke i databasen.")
+
+    # 📌 Oppdater eller legg til produkt i `selected_products`
+    selected_product = SelectedProduct.query.filter_by(user_id=current_user.id, product_name=name).first()
+
+    if selected_product:
+        print(f"🔄 Oppdaterer valgt produkt: {name}")
+        selected_product.times_selected += 1
+        selected_product.last_selected = datetime.utcnow()
+    else:
+        print(f"➕ Legger til nytt valgt produkt: {name}")
+        new_selected_product = SelectedProduct(
+            user_id=current_user.id,
+            product_name=name,
+            calories_per_100g=calories_per_100g,
+            proteins_per_100g=proteins_per_100g,
+            fat_per_100g=fat_per_100g,
+            carbohydrates_per_100g=carbohydrates_per_100g,
+            weight=weight,
+            image_url=image_url if image_url else url_for('static', filename='upload/default_image.png'),
+            times_selected=1,
+            last_selected=datetime.utcnow()
+        )
+        db.session.add(new_selected_product)
+
     db.session.commit()
+    print("✅ Data lagret!")
 
     flash(f"{weight}g av {name} er lagt til for {selected_date}.", 'success')
     return redirect(url_for('index', date=selected_date.isoformat()))
 
 
 
+
+
 @app.route('/delete_product/<int:product_id>', methods=['POST'])
 @login_required
 def delete_product(product_id):
-    product = Product.query.get_or_404(product_id)  # Sikkerhet: Bruk `get_or_404` for å unngå at ugyldige ID-er gir uventet oppførsel.
+    product = Product.query.get_or_404(product_id)  # Sikkerhet: Bruk get_or_404 for å unngå at ugyldige ID-er gir uventet oppførsel.
     
-    if product.image:  # Sjekk om produktet har et bilde
+    # 🔥 Slett alle referanser i `user_logged_product` før produktet slettes
+    UserLoggedProduct.query.filter_by(product_id=product_id).delete()
+
+    # Slett bildet fra serveren hvis det finnes
+    if product.image:
         image_path = os.path.join(app.config['UPLOAD_FOLDER'], product.image.split('/')[-1])  # Finn full sti til bildet
         if os.path.exists(image_path):  # Sjekk om filen eksisterer
             try:
@@ -705,8 +897,8 @@ def delete_product(product_id):
     # Slett produktet fra databasen
     db.session.delete(product)
     db.session.commit()
-    flash(f"Produktet '{product.name}' ble slettet.", 'success')
 
+    flash(f"Produktet '{product.name}' ble slettet.", 'success')
     return redirect(url_for('manage_products'))
 
 
@@ -762,7 +954,7 @@ def manage_products():
                 secure_name = secure_filename(image_file.filename)  # Sikre filnavn
                 image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_name)
                 image_file.save(image_path)
-                image = f"uploads/{secure_name}"
+                image = secure_name  # ✅ Lagre kun filnavnet, IKKE "uploads/"
 
         # Sjekk om produktet allerede finnes i databasen (kun brukeropprettede produkter)
         existing_product = Product.query.filter_by(name=name, created_by_user=True).first()
@@ -778,7 +970,7 @@ def manage_products():
             proteins=(proteins_per_100g * weight) / 100,
             fat=(fat_per_100g * weight) / 100,
             carbohydrates=(carbohydrates_per_100g * weight) / 100,
-            image=image,
+            image=image,  # ✅ Ingen "uploads/" i databasen!
             created_by_user=True  # Sett flagget for å indikere at dette er et brukeropprettet produkt
         )
         db.session.add(new_product)
@@ -1039,9 +1231,6 @@ def barcode_lookup():
         }})
 
     return jsonify({'status': 'fail', 'message': 'Produktet ble ikke funnet i noen databaser.'})
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 # Initialize database with app context (må være neders)
 if __name__ == "__main__":

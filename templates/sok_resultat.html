@@ -21,28 +21,39 @@
             <ul class="product-list">
                 {% for produkt in produkter %}
                     <li class="product-item">
-                        <strong>{{ produkt.name }}</strong><br>
+                        <h2>{{ produkt.name }}</h2>
 
-                        {% if produkt.image_url %}
-                            <img src="{{ produkt.image_url }}" alt="{{ produkt.name }}" width="100">
-                        {% else %}
-                            <img src="{{ url_for('static', filename='default-image.png') }}" alt="Ingen bilde tilgjengelig" width="100" class="default-image">
-                        {% endif %}
+                        <!-- Viser bilde eller standardbilde om det mangler -->
+                        <img src="{{ produkt.image_url or url_for('static', filename='upload/default_image.png') }}" 
+                             alt="{{ produkt.name }}" width="100">
 
-                        <br>
-                        <strong>Kalorier per 100g:</strong> {{ produkt.calories_per_100g if produkt.calories_per_100g != "Ukjent" else "Ukjent" }}<br>
-                        <strong>Proteiner per 100g:</strong> {{ produkt.proteins_per_100g if produkt.proteins_per_100g != "Ukjent" else "Ukjent" }}<br>
-                        <strong>Fett per 100g:</strong> {{ produkt.fat_per_100g if produkt.fat_per_100g != "Ukjent" else "Ukjent" }}<br>
-                        <strong>Karbohydrater per 100g:</strong> {{ produkt.carbohydrates_per_100g if produkt.carbohydrates_per_100g != "Ukjent" else "Ukjent" }}<br>
-                        <strong>Totalt vekt:</strong> {{ produkt.weight if produkt.weight != "Ukjent" else "Ukjent" }} g<br>
-                        <strong>Kilde:</strong> {{ produkt.source }}<br>
+                        <p><strong>Kalorier per 100g:</strong> 
+                            {{ ("{:.1f}".format(produkt.calories_per_100g | float)) if produkt.calories_per_100g else "Ukjent" }}
+                        </p>
+                        <p><strong>Proteiner per 100g:</strong> 
+                            {{ ("{:.1f}".format(produkt.proteins_per_100g | float)) if produkt.proteins_per_100g else "Ukjent" }}
+                        </p>
+                        <p><strong>Fett per 100g:</strong> 
+                            {{ ("{:.1f}".format(produkt.fat_per_100g | float)) if produkt.fat_per_100g else "Ukjent" }}
+                        </p>
+                        <p><strong>Karbohydrater per 100g:</strong> 
+                            {{ ("{:.1f}".format(produkt.carbohydrates_per_100g | float)) if produkt.carbohydrates_per_100g else "Ukjent" }}
+                        </p>
+                        <p><strong>Totalt vekt:</strong> 
+                            {{ ("{:.1f}".format(produkt.weight | float)) if produkt.weight else "Ukjent" }} g
+                        </p>
 
+                        <!-- Tydelig kildevisning -->
+                        <p><strong>Kilde:</strong> <span class="source-label">{{ produkt.source }}</span></p>
+
+                        <!-- Form for å legge til produktet i kaloritelleren -->
                         <form method="POST" action="{{ url_for('add_to_tracker') }}">
                             <input type="hidden" name="name" value="{{ produkt.name }}">
                             <input type="hidden" name="calories_per_100g" value="{{ produkt.calories_per_100g }}">
                             <input type="hidden" name="proteins_per_100g" value="{{ produkt.proteins_per_100g }}">
                             <input type="hidden" name="fat_per_100g" value="{{ produkt.fat_per_100g }}">
                             <input type="hidden" name="carbohydrates_per_100g" value="{{ produkt.carbohydrates_per_100g }}">
+                            <input type="hidden" name="image_url" value="{{ produkt.image_url or url_for('static', filename='upload/default_image.png') }}">
 
                             <label for="input_weight_{{ loop.index }}">Mengde (gram):</label>
                             <input type="number" name="weight" id="input_weight_{{ loop.index }}" value="100" step="1" min="1" required>
