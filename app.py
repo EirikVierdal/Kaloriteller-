@@ -10,21 +10,36 @@ import json
 from sqlalchemy.orm import Session
 import pprint
 
+# API-nøkkel for Kassal, med fallback-verdi hvis miljøvariabelen ikke er satt
 KASSAL_API_KEY = os.getenv("KASSAL_API_KEY", "RSoYsw9xCYwH5pPWh3zsWYSw50gi9nLM79MIz1xv")
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.secret_key = 'your_secret_key'
 
-# *Oppdatert PostgreSQL database URI*
+# **Oppdatert PostgreSQL database URI**
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Eirik2006@localhost:5432/Kaloriteller")
+
+# **Fix for Heroku sitt gamle "postgres://" format**
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Initialiser database, migrering og innlogging
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# **Test at databasen er tilgjengelig**
+try:
+    with app.app_context():
+        db.create_all()  # Forsikrer at tabeller eksisterer lokalt
+        print("✅ Database connection successful!")
+except Exception as e:
+    print(f"❌ Database connection failed: {e}")
 
 # Models
 
