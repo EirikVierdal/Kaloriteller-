@@ -1,14 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Logg inn</h1>
-<form method="POST" action="{{ url_for('login') }}">
-    <label for="username">Brukernavn:</label>
-    <input type="text" name="username" id="username" required>
-    <br>
-    <label for="password">Passord:</label>
-    <input type="password" name="password" id="password" required>
-    <br>
-    <button type="submit">Logg inn</button>
-</form>
-<p>Har du ikke en konto? <a href="{{ url_for('register') }}">Registrer deg her</a></p>
+<section class="card" style="max-width: 400px; margin: 40px auto;">
+  <!-- Kaloriteller-overskrift -->
+  <h1 style="text-align: center; margin-bottom: 20px;">Kaloriteller</h1>
+
+  <h2>Logg inn</h2>
+  <form method="POST" action="{{ url_for('login') }}">
+    <div class="form-group">
+      <label for="username">Brukernavn:</label>
+      <input type="text" name="username" id="username" required>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Passord:</label>
+      <input type="password" name="password" id="password" required>
+    </div>
+
+    <button type="submit" class="btn-blue" style="margin-top: 10px;">Logg inn</button>
+  </form>
+
+  <p style="margin-top: 15px;">
+    Har du ikke en konto?
+    <a href="{{ url_for('register') }}">Registrer deg her</a>
+  </p>
+</section>
 {% endblock %}

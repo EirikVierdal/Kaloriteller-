@@ -1,71 +1,149 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Søkeresultater</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Søkeresultater</title>
+  <!-- Lenke til style.css med hamburger-stil og generelle oppsett -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header>
-        <nav>
-            <a href="{{ url_for('index') }}">Hjem</a> |
-            <a href="{{ url_for('logout') }}">Logg ut</a>
-        </nav>
-    </header>
 
-    <main>
-        <h1>Produkter funnet:</h1>
+  <!-- Header-seksjon med hamburger -->
+  <header>
+    <div class="header-inner">
+      <!-- Logo/tittel -->
+      <a class="app-title" href="{{ url_for('index') }}">Kaloriteller</a>
 
-        {% if produkter %}
-            <ul class="product-list">
-                {% for produkt in produkter %}
-                    <li class="product-item">
-                        <h2>{{ produkt.name }}</h2>
+      <!-- Navigasjonslenker (desktop) -->
+      <div class="nav-links">
+        <a href="{{ url_for('index') }}">Hjem</a>
+        <a href="{{ url_for('logout') }}">Logg ut</a>
+      </div>
 
-                        <!-- Viser bilde eller standardbilde om det mangler -->
-                        <img src="{{ produkt.image_url or url_for('static', filename='upload/default_image.png') }}" 
-                             alt="{{ produkt.name }}" width="100">
+      <!-- Hamburger-knapp (mobil) -->
+      <button class="hamburger" id="hamburgerBtn">&#9776;</button>
+    </div>
+  </header>
 
-                        <p><strong>Kalorier per 100g:</strong> 
-                            {{ ("{:.1f}".format(produkt.calories_per_100g | float)) if produkt.calories_per_100g else "Ukjent" }}
-                        </p>
-                        <p><strong>Proteiner per 100g:</strong> 
-                            {{ ("{:.1f}".format(produkt.proteins_per_100g | float)) if produkt.proteins_per_100g else "Ukjent" }}
-                        </p>
-                        <p><strong>Fett per 100g:</strong> 
-                            {{ ("{:.1f}".format(produkt.fat_per_100g | float)) if produkt.fat_per_100g else "Ukjent" }}
-                        </p>
-                        <p><strong>Karbohydrater per 100g:</strong> 
-                            {{ ("{:.1f}".format(produkt.carbohydrates_per_100g | float)) if produkt.carbohydrates_per_100g else "Ukjent" }}
-                        </p>
-                        <p><strong>Totalt vekt:</strong> 
-                            {{ ("{:.1f}".format(produkt.weight | float)) if produkt.weight else "Ukjent" }} g
-                        </p>
+  <!-- Mobilmeny (vises når man klikker på hamburger) -->
+  <nav class="mobile-nav" id="mobileNav">
+    <a href="{{ url_for('index') }}">Hjem</a>
+    <a href="{{ url_for('logout') }}">Logg ut</a>
+  </nav>
 
-                        <!-- Tydelig kildevisning -->
-                        <p><strong>Kilde:</strong> <span class="source-label">{{ produkt.source }}</span></p>
+  <main>
+    <h1>Produkter funnet:</h1>
 
-                        <!-- Form for å legge til produktet i kaloritelleren -->
-                        <form method="POST" action="{{ url_for('add_to_tracker') }}">
-                            <input type="hidden" name="name" value="{{ produkt.name }}">
-                            <input type="hidden" name="calories_per_100g" value="{{ produkt.calories_per_100g }}">
-                            <input type="hidden" name="proteins_per_100g" value="{{ produkt.proteins_per_100g }}">
-                            <input type="hidden" name="fat_per_100g" value="{{ produkt.fat_per_100g }}">
-                            <input type="hidden" name="carbohydrates_per_100g" value="{{ produkt.carbohydrates_per_100g }}">
-                            <input type="hidden" name="image_url" value="{{ produkt.image_url or url_for('static', filename='upload/default_image.png') }}">
+    {% if produkter %}
+      <!-- Grid med "product-grid" / "product-card" -->
+      <div class="product-grid">
+        {% for produkt in produkter %}
+          <div class="product-card">
+            <!-- Bilde -->
+            <img 
+              src="{{ produkt.image_url or url_for('static', filename='upload/default_image.png') }}" 
+              alt="{{ produkt.name }}"
+              class="product-image"
+            >
 
-                            <label for="input_weight_{{ loop.index }}">Mengde (gram):</label>
-                            <input type="number" name="weight" id="input_weight_{{ loop.index }}" value="100" step="1" min="1" required>
-                            
-                            <button type="submit">Legg til i kaloriteller</button>
-                        </form>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Ingen produkter funnet for søket ditt.</p>
-        {% endif %}
-    </main>
+            <!-- Navn -->
+            <h2 class="product-name">{{ produkt.name }}</h2>
+
+            <!-- Kalorier per 100g -->
+            <p><strong>Kalorier per 100g:</strong>
+            {% if produkt.calories_per_100g != "Ukjent" and produkt.calories_per_100g %}
+              {{ "{:.1f}".format(produkt.calories_per_100g|float) }} 
+            {% else %}
+              Ukjent
+            {% endif %}
+            </p>
+
+            <!-- Proteiner per 100g -->
+            <p><strong>Proteiner per 100g:</strong>
+            {% if produkt.proteins_per_100g != "Ukjent" and produkt.proteins_per_100g %}
+              {{ "{:.1f}".format(produkt.proteins_per_100g|float) }} 
+            {% else %}
+              Ukjent
+            {% endif %}
+            </p>
+
+            <!-- Fett per 100g -->
+            <p><strong>Fett per 100g:</strong>
+            {% if produkt.fat_per_100g != "Ukjent" and produkt.fat_per_100g %}
+              {{ "{:.1f}".format(produkt.fat_per_100g|float) }}
+            {% else %}
+              Ukjent
+            {% endif %}
+            </p>
+
+            <!-- Karbohydrater per 100g -->
+            <p><strong>Karbohydrater per 100g:</strong>
+            {% if produkt.carbohydrates_per_100g != "Ukjent" and produkt.carbohydrates_per_100g %}
+              {{ "{:.1f}".format(produkt.carbohydrates_per_100g|float) }}
+            {% else %}
+              Ukjent
+            {% endif %}
+            </p>
+
+            <!-- Total vekt -->
+            <p><strong>Totalt vekt:</strong>
+            {% if produkt.weight != "Ukjent" and produkt.weight %}
+              {{ "{:.1f}".format(produkt.weight|float) }} g
+            {% else %}
+              Ukjent
+            {% endif %}
+            </p>
+
+            <!-- Kilde -->
+            <p><strong>Kilde:</strong> 
+              <span class="source-label">{{ produkt.source }}</span>
+            </p>
+
+            <!-- Skjema for å legge til i kaloriteller -->
+            <form method="POST" action="{{ url_for('add_to_tracker') }}">
+              <!-- Skjulte felter: -->
+              <input type="hidden" name="name" value="{{ produkt.name }}">
+              <input type="hidden" name="calories_per_100g" value="{{ produkt.calories_per_100g }}">
+              <input type="hidden" name="proteins_per_100g" value="{{ produkt.proteins_per_100g }}">
+              <input type="hidden" name="fat_per_100g" value="{{ produkt.fat_per_100g }}">
+              <input type="hidden" name="carbohydrates_per_100g" value="{{ produkt.carbohydrates_per_100g }}">
+              <input type="hidden" name="image_url" value="{{ produkt.image_url or url_for('static', filename='upload/default_image.png') }}">
+
+              <!-- VIKTIG: Send original_weight videre -->
+              <input type="hidden" name="original_weight"
+                     value="{% if produkt.weight != 'Ukjent' %}{{ produkt.weight }}{% else %}0{% endif %}">
+
+              <!-- Brukeren velger porsjon: -->
+              <label for="input_weight_{{ loop.index }}">Mengde (gram):</label>
+              <input 
+                type="number"
+                name="weight"
+                id="input_weight_{{ loop.index }}"
+                value="100"
+                step="1"
+                min="1"
+                required
+              >
+
+              <button type="submit" class="btn-blue">Legg til i kaloriteller</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Ingen produkter funnet for søket ditt.</p>
+    {% endif %}
+  </main>
+
+  <!-- JavaScript for hamburger-menyen -->
+  <script>
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+
+    hamburgerBtn.addEventListener('click', () => {
+      mobileNav.classList.toggle('open');
+    });
+  </script>
 </body>
 </html>

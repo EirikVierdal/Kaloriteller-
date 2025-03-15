@@ -1,237 +1,659 @@
+/* ================================
+   Generelle innstillinger
+================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 body {
-    font-family: Arial, sans-serif;
-    line-height: 1.6;
-    background-color: #f4f4f9;
-    color: #333;
-    margin: 0;
-    padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #F8FAFC;
+  color: #333;
+  padding: 0 20px;
 }
 
-/* Header */
+/* ================================
+   Header & Navigasjon
+================================ */
 header {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
+  background-color: #1F2937;
+  color: #fff;
+  padding: 10px 20px;
+}
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.app-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  text-decoration: none;
+}
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+.nav-links a {
+  color: #fff;
+  text-decoration: none;
+}
+.nav-links a:hover {
+  text-decoration: underline;
+}
+.hamburger {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: none;
+}
+.mobile-nav {
+  display: none;
+  flex-direction: column;
+  background-color: #1F2937;
+  position: absolute;
+  top: 60px;
+  right: 0;
+  width: 100%;
+  padding: 10px;
+}
+.mobile-nav a {
+  color: #fff;
+  text-decoration: none;
+  padding: 10px 0;
+  border-bottom: 1px solid #2E3A47;
+}
+.mobile-nav a:hover {
+  background-color: #2E3A47;
+}
+.mobile-nav.open {
+  display: flex;
 }
 
-header nav {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-
-header nav a {
-    color: white;
-    text-decoration: none;
-    font-weight: bold;
-}
-
-header nav a:hover {
-    text-decoration: underline;
-}
-
-/* Hovedinnhold */
+/* ================================
+   Main Container
+================================ */
 main {
-    max-width: 900px;
-    margin: 20px auto;
-    padding: 20px;
-    background-color: white;
-    border-radius: 5px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  margin: 20px auto;
 }
-
-/* Justering av toppseksjonen */
 .top-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
-
-h1 {
-    margin: 0;
-    color: #4CAF50;
-    font-size: 28px;
+.top-container .weekday {
+  font-size: 16px;
+  color: #666;
+  font-weight: bold;
 }
-
-/* Justering av valgt dato */
-.selected-date {
-    font-size: 18px;
-    font-weight: bold;
+.top-container .current-date {
+  font-size: 16px;
+  color: #666;
+  flex: 1;
+  text-align: center;
 }
-
-/* Justering av loggnavigasjon */
-.log-navigation {
-    text-align: right;
+.icon-button {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  margin: 0;
+  padding: 0 10px;
 }
-
+.date-container {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.hidden {
+  display: none;
+}
+.log-navigation form {
+  margin-bottom: 10px;
+}
 .log-navigation button {
-    display: block;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 5px;
-    cursor: pointer;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 10px;
 }
-
 .log-navigation p {
-    margin-top: 5px;
+  margin-top: 5px;
 }
-
-/* Velg dato-seksjonen */
+.day-link {
+  color: #007bff;
+  text-decoration: none;
+}
+.day-link:hover {
+  text-decoration: underline;
+}
 .date-selection {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
-
-.date-selection form {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.selected-date {
+  font-size: 16px;
+  font-weight: bold;
 }
-
 .date-selection input[type="date"] {
-    padding: 5px;
-    font-size: 14px;
-    width: 140px;
+  padding: 5px;
+  font-size: 14px;
 }
-
 .date-selection button {
-    padding: 5px 10px;
-    font-size: 14px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+  padding: 5px 10px;
+  font-size: 14px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 }
 
-/* Statistikkseksjon */
-.stats-container {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    flex-wrap: wrap;
+/* ================================
+   Kort-stil for seksjoner
+================================ */
+.card {
+  background-color: #fff;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.card h2 {
+  margin-bottom: 10px;
+  color: #333;
+}
+.goal-info {
+  text-align: center;
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
 }
 
-/* Generelle knappestiler */
+/* ================================
+   Dagens Stats Layout
+================================ */
+.calorie-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.calorie-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 50%;
+}
+.calorie-text h4 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+}
+.calorie-text p {
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 0;
+}
+.calorie-circle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 50%;
+}
+.calorie-circle canvas {
+  width: 120px;
+  height: 120px;
+}
+
+/* ================================
+   Tre bokser for Protein/Fett/Karbs
+================================ */
+.macros-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  overflow-x: hidden; /* unngå scrolling, men kan klippe hvis alt for stort */
+}
+
+/* PC: litt større bokser, men font fortsatt liten */
+.macro-box {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  min-height: 150px;
+  min-width: 150px; /* gir plass til f.eks. '9999g / 9999g' */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  text-align: center;
+}
+.macro-box h4 {
+  margin: 0;
+  margin-bottom: 6px;
+  font-size: 0.8rem; /* litt mindre font */
+  white-space: nowrap;
+}
+.macro-box p {
+  margin-bottom: 8px;
+  font-size: 0.75rem; /* enda mindre font for tallene */
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.macro-box canvas {
+  width: 80px;
+  height: 80px;
+}
+
+/* ================================
+   Søk etter produkter
+================================ */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.search-bar input[type="text"] {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  flex: 1;
+}
+.search-bar button {
+  padding: 8px 12px;
+  background-color: #007BFF;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.search-bar button:hover {
+  background-color: #0056b3;
+}
+
+/* Produktlister (index/favoritter) */
+.item-list {
+  list-style: none;
+  padding: 0;
+}
+.item-list li {
+  background: #F9FAFB;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+}
+
+/* ================================
+   Knapper generelt
+================================ */
 button {
-    display: inline-block;
-    padding: 10px 15px;
-    background-color: #007BFF;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-top: 10px;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-left: 6px;
+  margin-top: 6px;
+}
+.btn-blue {
+  background-color: #3B82F6;
+  color: #fff;
+  padding: 8px 12px;
+}
+.btn-blue:hover {
+  background-color: #2563EB;
+}
+.btn-red {
+  background-color: #EF4444;
+  color: #fff;
+  padding: 8px 12px;
+}
+.btn-red:hover {
+  background-color: #DC2626;
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 12px;
+}
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+.btn-success {
+  background-color: #28a745;
+  color: #fff;
+  padding: 8px 12px;
+}
+.btn-success:hover {
+  background-color: #218838;
+}
+.btn-warning {
+  background-color: #ffc107;
+  color: #fff;
+  padding: 8px 12px;
+}
+.btn-warning:hover {
+  background-color: #e0a800;
 }
 
-button:hover {
-    background-color: #0056b3;
-}
-
-/* Listeelementer */
-ul {
-    list-style: none;
-    padding: 0;
-}
-
-li {
-    margin: 10px 0;
-    padding: 10px;
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-}
-
-/* Bilder */
-.product-image img {
+/* ================================
+   Responsiv design
+================================ */
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+  .hamburger {
     display: block;
-    max-width: 100px;
-    margin-top: 10px;
-    border-radius: 5px;
+  }
+
+  /* Gjør kalorier litt mindre på mobil */
+  .calorie-circle canvas {
+    width: 100px;
+    height: 100px;
+  }
+
+  /* Enda mindre bokser på mobil */
+  .macro-box {
+    min-width: 90px; /* så 3 bokser får plass i bredden på en rad */
+  }
+  .macro-box canvas {
+    width: 60px;
+    height: 60px;
+  }
+  .macro-box h4 {
+    font-size: 0.7rem; /* enda mindre */
+  }
+  .macro-box p {
+    font-size: 0.65rem;
+  }
 }
 
-/* Progresjonslinje */
-.progress-bar {
-    background-color: #ddd;
-    border-radius: 5px;
-    overflow: hidden;
-    height: 20px;
-    margin: 10px 0;
+/* ================================
+   Sok_resultat styling
+================================ */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
 }
 
-.progress {
-    background-color: #4CAF50;
-    height: 100%;
-    transition: width 0.3s ease;
+.product-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Tekst */
-p {
-    margin: 5px 0;
-    font-size: 14px;
+.product-image {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 10px;
 }
 
-a {
-    color: #007BFF;
-    text-decoration: none;
+.product-name {
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+  color: #333;
 }
 
-a:hover {
-    text-decoration: underline;
+.product-card p {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 6px;
 }
 
-/* Chart.js doughnut charts */
-.chart-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 20px auto;
-    gap: 20px;
-    flex-wrap: wrap;
+.source-label {
+  font-style: italic;
+  color: #777;
 }
 
-.chart-wrapper {
-    text-align: center;
-    max-width: 200px;
+.product-card form {
+  margin-top: 10px;
 }
 
-canvas {
-    display: block;
-    margin: 0 auto;
-    max-width: 100%;
+/* ================================
+   Set Goal Page (ekstra)
+================================ */
+.set-goal-container {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+.set-goal-container h1 {
+  margin-bottom: 15px;
+  text-align: center;
+  color: #333;
+}
+.set-goal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.set-goal-form label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+.set-goal-form input[type="number"],
+.set-goal-form select {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.set-goal-form button {
+  background-color: #3B82F6;
+  color: #fff;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.set-goal-form button:hover {
+  background-color: #2563EB;
+}
+.weight-section {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.weight-section h2 {
+  margin-bottom: 10px;
+  color: #333;
+}
+.weight-section form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.weight-section label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+.weight-section input[type="number"],
+.weight-section input[type="date"] {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.weight-chart-container {
+  margin-top: 10px;
+  text-align: center;
 }
 
-/* Tooltip styles */
-.chart-tooltip {
-    font-size: 12px;
-    font-weight: bold;
-    color: #333;
+/* ================================
+   Manage Products Page (NY)
+================================ */
+.add-product-card {
+  margin-bottom: 20px;
+}
+.add-product-card h2 {
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  color: #333;
+}
+.add-product-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.add-product-card .form-group label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+.add-product-card .form-group input {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
-.popup-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+.manage-products-list h2 {
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  color: #333;
 }
 
-.popup-content {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
-    text-align: center;
+/* Grid av "product-cards" i admin-liste */
+.edit-product-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card-content label {
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+.product-card-content input[type="text"],
+.product-card-content input[type="number"],
+.product-card-content input[type="file"] {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.manage-product-img {
+  max-width: 100px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.product-card-status {
+  margin: 10px 0;
+}
+.product-card-status .approved-label {
+  color: green;
+  font-weight: bold;
+}
+.product-card-status .not-approved-label {
+  color: red;
+  font-weight: bold;
+}
+.product-card-actions {
+  margin-top: 8px;
+}
+.favorite-form,
+.delete-form {
+  margin-top: 8px;
+}
+
+/* ================================
+   Scanner Layout (NY)
+================================ */
+.scanner-card {
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+.scan-instructions {
+  background-color: #f0f0f0;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.camera-container {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: #222;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  height: 60%;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.product-result {
+  text-align: center;
+}
+
+.scanner-product-img {
+  display: block;
+  margin: 0 auto 10px auto;
+  max-width: 120px;
+  border-radius: 6px;
+}
+
+.scanner-input {
+  width: 80px;
+  margin: 10px 0;
+}
+
+.scanner-add-btn {
+  margin-top: 10px;
 }

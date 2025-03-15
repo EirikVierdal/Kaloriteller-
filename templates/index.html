@@ -1,211 +1,274 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kaloriteller</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaloriteller</title>
 
-    <!-- PWA-funksjonalitet -->
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}"/>
-    <meta name="theme-color" content="#4CAF50"/>
-    <link rel="icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}"/>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lenke til CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  
+  <!-- PWA-funksjonalitet -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}"/>
+  <meta name="theme-color" content="#4CAF50"/>
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}"/>
+
+  <!-- Chart.js for diagrammer -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    {% if not current_user.setup_complete %}
+
+  {% if not current_user.setup_complete %}
     {% include 'setup_popup.html' %}
-{% endif %}
+  {% endif %}
 
-    <header>
-        <nav>
-            <a href="{{ url_for('index') }}">Hjem</a> |
-            <a href="{{ url_for('logout') }}">Logg ut</a> |
-            <a href="{{ url_for('set_goal') }}">Sett Mål</a> |
-            <a href="{{ url_for('manage_products') }}">Administrer Produkter</a>
-        </nav>
-    </header>
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <a class="app-title" href="{{ url_for('index') }}">Kaloriteller</a>
+      <!-- Desktop-meny -->
+      <div class="nav-links">
+        <a href="{{ url_for('index') }}">Hjem</a>
+        <a href="{{ url_for('day_log', date=selected_date.isoformat()) }}">Se logg</a>
+        
+        <!-- Bare vis lenken hvis admin er innlogget -->
+        {% if current_user.is_authenticated and current_user.is_admin %}
+          <a href="{{ url_for('unapproved_products') }}">Ugodkjente Produkter</a>
+        {% endif %}
+        
+        <a href="{{ url_for('logout') }}">Logg ut</a>
+        <a href="{{ url_for('set_goal') }}">Sett Mål</a>
+        <a href="{{ url_for('manage_products') }}">Administrer Produkter</a>
+      </div>
+      <button class="hamburger" id="hamburgerBtn">&#9776;</button>
+    </div>
+  </header>
 
-    <main>
-        <div class="top-container">
-            <h1>Kaloriteller</h1>
-            <div class="log-navigation">
-                <form method="GET" action="{{ url_for('day_log', date=selected_date.isoformat()) }}">
-                    <button type="submit">Se logg</button>
-                </form>
-                <p>
-                    <a href="{{ url_for('index', date=(selected_date - timedelta(days=1)).isoformat()) }}">Forrige dag</a> |
-                    <a href="{{ url_for('index', date=(selected_date + timedelta(days=1)).isoformat()) }}">Neste dag</a>
-                </p>
-            </div>
+  <!-- Mobilmeny -->
+  <nav class="mobile-nav" id="mobileNav">
+    <a href="{{ url_for('index') }}">Hjem</a>
+    <a href="{{ url_for('day_log', date=selected_date.isoformat()) }}">Se logg</a>
+    
+    {% if current_user.is_authenticated and current_user.is_admin %}
+      <a href="{{ url_for('unapproved_products') }}">Ugodkjente Produkter</a>
+    {% endif %}
+    
+    <a href="{{ url_for('logout') }}">Logg ut</a>
+    <a href="{{ url_for('set_goal') }}">Sett Mål</a>
+    <a href="{{ url_for('manage_products') }}">Administrer Produkter</a>
+  </nav>
+
+  <main>
+    <!-- Toppseksjon: Ukedag (venstre), ISO-dato (midten), kalenderikon (høyre) -->
+    <div class="top-container">
+      <p class="weekday">{{ weekday_name }}</p>
+      <p class="current-date">{{ selected_date }}</p>
+      <button id="dateToggleBtn" class="icon-button" title="Endre dato eller se logg">
+        🗓
+      </button>
+    </div>
+
+    <!-- Dato/logg-løsning -->
+    <div id="dateContainer" class="date-container hidden">
+      <div class="log-navigation">
+        <p>
+          <a href="{{ url_for('index', date=(selected_date - timedelta(days=1)).isoformat()) }}" class="day-link">Forrige dag</a> |
+          <a href="{{ url_for('index', date=(selected_date + timedelta(days=1)).isoformat()) }}" class="day-link">Neste dag</a>
+        </p>
+      </div>
+      <div class="date-selection">
+        <span class="selected-date">Valgt dato: {{ selected_date }}</span>
+        <form method="GET" action="{{ url_for('index') }}">
+          <input type="date" id="date" name="date" value="{{ selected_date.isoformat() }}">
+          <button type="submit" class="btn-blue">Oppdater</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Daglig Oversikt -->
+    <section class="card">
+      <h2>Daglig Oversikt</h2>
+      <h3 class="goal-info">
+        {% if user_goal and user_goal.goal_type %}
+          {{ user_goal.goal_type }}
+        {% else %}
+          Ingen mål valgt
+        {% endif %}
+      </h3>
+
+      <!-- Kalorier: Tekst venstre, sirkel høyre -->
+      <div class="calorie-row">
+        <div class="calorie-text">
+          <h4>Kalorier</h4>
+          <p>{{ daily_totals.calories|round(0) }} / {{ user_goal.calorie_goal|round(0) if user_goal else '---' }}</p>
         </div>
-
-        <div class="date-selection">
-            <span class="selected-date">Valgt dato: {{ selected_date }}</span>
-            <form method="GET" action="{{ url_for('index') }}">
-                <input type="date" id="date" name="date" value="{{ selected_date.isoformat() }}">
-                <button type="submit">Oppdater</button>
-            </form>
+        <div class="calorie-circle">
+          <canvas id="caloriesChart"></canvas>
         </div>
+      </div>
 
-        <!-- Dagens Stats -->
-        <section>
-            <h2>Dagens Stats</h2>
-            
-            <h3 style="text-align: center; margin-bottom: 20px;">
-                {% if user_goal and user_goal.goal_type %}
-                    {{ user_goal.goal_type }}
-                {% else %}
-                    Ingen mål valgt
-                {% endif %}
-            </h3>
+      <!-- Makroer: 3 bokser side om side -->
+      <div class="macros-row">
+        <div class="macro-box">
+          <h4>Protein</h4>
+          <p>{{ daily_totals.proteins|round(0) }}g / {% if user_goal %}{{ user_goal.protein_goal|round(0) }}{% else %}---{% endif %}g</p>
+          <canvas id="proteinChart"></canvas>
+        </div>
+        <div class="macro-box">
+          <h4>Fett</h4>
+          <p>{{ daily_totals.fat|round(0) }}g / {% if user_goal %}{{ user_goal.fat_goal|round(0) }}{% else %}---{% endif %}g</p>
+          <canvas id="fatChart"></canvas>
+        </div>
+        <div class="macro-box">
+          <h4>Karbs</h4>
+          <p>{{ daily_totals.carbohydrates|round(0) }}g / {% if user_goal %}{{ user_goal.carb_goal|round(0) }}{% else %}---{% endif %}g</p>
+          <canvas id="carbChart"></canvas>
+        </div>
+      </div>
+    </section>
 
-            <div class="stats-container">
-                <div>
-                    <canvas id="caloriesChart"></canvas>
-                    <p>Kalorier: {{ daily_totals.calories | round(1) }} / {{ user_goal.calorie_goal if user_goal else '---' }}</p>
-                </div>
-                <div>
-                    <canvas id="proteinChart"></canvas>
-                    <p>Proteiner: {{ daily_totals.proteins | round(1) }}g / {{ user_goal.protein_goal if user_goal else '---' }}g</p>
-                </div>
-                <div>
-                    <canvas id="fatChart"></canvas>
-                    <p>Fett: {{ daily_totals.fat | round(1) }}g / {{ user_goal.fat_goal if user_goal else '---' }}g</p>
-                </div>
-                <div>
-                    <canvas id="carbChart"></canvas>
-                    <p>Karbohydrater: {{ daily_totals.carbohydrates | round(1) }}g / {{ user_goal.carb_goal if user_goal else '---' }}g</p>
-                </div>
-            </div>
-        </section>
+    <!-- Søk etter produkter -->
+    <section class="card">
+      <h2>Søk etter produkter</h2>
+      <div class="search-bar">
+        <form method="POST" action="{{ url_for('search') }}">
+          <input type="text" name="search" placeholder="Søk etter et produkt" required>
+          <button type="submit">Søk</button>
+        </form>
+        <a href="{{ url_for('scan') }}" class="btn-secondary" style="margin-left: 10px;">
+          📷 Skann strekkode
+        </a>
+      </div>
+    </section>
 
-<!-- Søk etter produkter -->
-<section>
-    <h2>Søk etter produkter:</h2>
-    <form method="POST" action="{{ url_for('search') }}" style="display: inline-block;">
-        <input type="text" name="search" placeholder="Søk etter et produkt" required>
-        <button type="submit">Søk</button>
-    </form>
-    <a href="{{ url_for('scan') }}" class="btn btn-secondary" style="margin-left: 10px;">
-        📷 Skann strekkode
-    </a>
-</section>
+    <!-- Produkter lagt til i dag -->
+    <section class="card">
+      <h2>Produkter lagt til</h2>
+      {% if daily_entries %}
+        <ul class="item-list">
+          {% for entry in daily_entries %}
+            <li>
+              <strong>{{ entry.name }}</strong>: {{ entry.weight|round(0) }}g –
+              {{ entry.calories|round(0) }} kcal,
+              {{ entry.proteins|round(0) }}g protein,
+              {{ entry.fat|round(0) }}g fett,
+              {{ entry.carbohydrates|round(0) }}g karbs
 
+              <form method="POST" action="{{ url_for('delete_daily_entry', entry_id=entry.id) }}" style="display:inline;">
+                <button type="submit" class="btn-red">Slett</button>
+              </form>
 
-        <!-- Produkter lagt til i dag -->
-        <section>
-            <h2>Produkter lagt til:</h2>
-            {% if daily_entries %}
-                <ul>
-                    {% for entry in daily_entries %}
-                        <li>
-                            <strong>{{ entry.name }}</strong>: {{ entry.weight }}g - 
-                            {{ entry.calories | round(1) }} kcal, 
-                            {{ entry.proteins | round(1) }}g protein, 
-                            {{ entry.fat | round(1) }}g fett, 
-                            {{ entry.carbohydrates | round(1) }}g karbohydrater
-                            <form method="POST" action="{{ url_for('delete_daily_entry', entry_id=entry.id) }}" style="display:inline;">
-                                <button type="submit">Slett</button>
-                            </form>
-                            <form method="POST" action="{{ url_for('add_favorite_from_log', entry_id=entry.id) }}" style="display:inline;">
-                                <button type="submit">Legg til favoritter</button>
-                            </form>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>Ingen produkter lagt til for denne datoen.</p>
-            {% endif %}
-        </section>
+              <form method="POST" action="{{ url_for('add_favorite_from_log', entry_id=entry.id) }}" style="display:inline;">
+                <button type="submit" class="btn-blue">Legg til favoritter</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Ingen produkter lagt til for denne datoen.</p>
+      {% endif %}
+    </section>
 
-        <!-- Favorittprodukter -->
-        <section>
-            <h2>Favorittprodukter:</h2>
-            {% if favorite_products %}
-                <ul>
-                    {% for product in favorite_products %}
-                        <li>
-                            <strong>{{ product.name }}</strong> - {{ product.calories | round(1) }} kcal per 100g
-                            <form method="POST" action="{{ url_for('add_to_tracker') }}" style="display:inline;">
-                                <input type="hidden" name="name" value="{{ product.name }}">
-                                <input type="hidden" name="calories_per_100g" value="{{ product.calories / product.weight * 100 }}">
-                                <input type="hidden" name="proteins_per_100g" value="{{ product.proteins / product.weight * 100 }}">
-                                <input type="hidden" name="fat_per_100g" value="{{ product.fat / product.weight * 100 }}">
-                                <input type="hidden" name="carbohydrates_per_100g" value="{{ product.carbohydrates / product.weight * 100 }}">
-                                
-                                <label for="weight_{{ product.id }}">Mengde (gram):</label>
-                                <input type="number" name="weight" id="weight_{{ product.id }}" value="100" min="1" required>
-                                
-                                <button type="submit">Legg til i dagens logg</button>
-                            </form>
-                            
-                            <form method="POST" action="{{ url_for('toggle_favorite', product_id=product.id) }}" style="display:inline;">
-                                <button type="submit">Fjern fra favoritter</button>
-                            </form>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>Ingen favoritter lagt til enda.</p>
-            {% endif %}
-        </section>
-    </main>
-</body>
-</html>
+    <!-- Favorittprodukter -->
+    <section class="card">
+      <h2>Favorittprodukter</h2>
+      {% if favorite_products %}
+        <ul class="item-list">
+          {% for product in favorite_products %}
+            <li>
+              <strong>{{ product.name }}</strong> – {{ product.calories|round(0) }} kcal per 100g
 
+              <form method="POST" action="{{ url_for('add_to_tracker') }}" style="display:inline;">
+                <input type="hidden" name="name" value="{{ product.name }}">
+                <input type="hidden" name="calories_per_100g" value="{{ (product.calories / product.weight * 100)|round(0) if product.weight else 0 }}">
+                <input type="hidden" name="proteins_per_100g" value="{{ (product.proteins / product.weight * 100)|round(0) if product.weight else 0 }}">
+                <input type="hidden" name="fat_per_100g" value="{{ (product.fat / product.weight * 100)|round(0) if product.weight else 0 }}">
+                <input type="hidden" name="carbohydrates_per_100g" value="{{ (product.carbohydrates / product.weight * 100)|round(0) if product.weight else 0 }}">
+                
+                <label for="weight_{{ product.id }}">Mengde (gram):</label>
+                <input type="number" name="weight" id="weight_{{ product.id }}" value="100" min="1" required>
+                <button type="submit" class="btn-blue">Legg til i dagens logg</button>
+              </form>
+              
+              <form method="POST" action="{{ url_for('toggle_favorite', product_id=product.id) }}" style="display:inline;">
+                <button type="submit" class="btn-red">Fjern fra favoritter</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Ingen favoritter lagt til enda.</p>
+      {% endif %}
+    </section>
+  </main>
 
-<!-- JavaScript for å generere diagrammer -->
-<script>
-    const createDoughnutChart = (ctx, { consumed, remaining, goal }) => {
-        const isOverGoal = consumed > goal;
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Forbrukt', 'Gjenstår'],
-                datasets: [{
-                    data: [consumed, Math.max(0, remaining)],
-                    backgroundColor: [isOverGoal ? '#FF0000' : '#4CAF50', '#ddd']
-                }]
-            },
-            options: {
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (tooltipItem) =>
-                                `${tooltipItem.label}: ${tooltipItem.raw.toFixed(1)}`
-                        }
-                    }
-                },
-                cutout: '70%',
-                responsive: true
+  <!-- Script for doughnut-diagrammer og toggles -->
+  <script>
+    function createDoughnutChart(ctx, consumed, goal) {
+      let remaining = Math.max(0, goal - consumed);
+      let isOverGoal = consumed > goal;
+
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [consumed, remaining],
+            backgroundColor: [
+              isOverGoal ? '#FF0000' : '#4CAF50',
+              '#DDD'
+            ]
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (tooltipItem) => {
+                  let val = tooltipItem.raw.toFixed(1);
+                  return val + (tooltipItem.datasetIndex === 0 ? ' forbrukt' : ' igjen');
+                }
+              }
             }
-        });
-    };
+          },
+          cutout: '70%',
+          responsive: true
+        }
+      });
+    }
 
-    createDoughnutChart(document.getElementById('caloriesChart').getContext('2d'), {
-        consumed: {{ daily_totals.calories | round(1) }},
-        remaining: Math.max(0, {{ user_goal.calorie_goal if user_goal else 0 }} - {{ daily_totals.calories | round(1) }}),
-        goal: {{ user_goal.calorie_goal if user_goal else 0 }}
+    // Opprette diagrammer
+    createDoughnutChart(document.getElementById('caloriesChart').getContext('2d'),
+      {{ daily_totals.calories|round(0) }},
+      {{ user_goal.calorie_goal|round(0) if user_goal else 0 }}
+    );
+    createDoughnutChart(document.getElementById('proteinChart').getContext('2d'),
+      {{ daily_totals.proteins|round(0) }},
+      {{ user_goal.protein_goal|round(0) if user_goal else 0 }}
+    );
+    createDoughnutChart(document.getElementById('fatChart').getContext('2d'),
+      {{ daily_totals.fat|round(0) }},
+      {{ user_goal.fat_goal|round(0) if user_goal else 0 }}
+    );
+    createDoughnutChart(document.getElementById('carbChart').getContext('2d'),
+      {{ daily_totals.carbohydrates|round(0) }},
+      {{ user_goal.carb_goal|round(0) if user_goal else 0 }}
+    );
+
+    // Hamburger-meny
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    hamburgerBtn.addEventListener('click', () => {
+      mobileNav.classList.toggle('open');
     });
 
-    createDoughnutChart(document.getElementById('proteinChart').getContext('2d'), {
-        consumed: {{ daily_totals.proteins | round(1) }},
-        remaining: Math.max(0, {{ user_goal.protein_goal if user_goal else 0 }} - {{ daily_totals.proteins | round(1) }}),
-        goal: {{ user_goal.protein_goal if user_goal else 0 }}
+    // Dato-løsning (vis/skjul dateContainer)
+    const dateToggleBtn = document.getElementById('dateToggleBtn');
+    const dateContainer = document.getElementById('dateContainer');
+    dateToggleBtn.addEventListener('click', () => {
+      dateContainer.classList.toggle('hidden');
     });
-
-    createDoughnutChart(document.getElementById('fatChart').getContext('2d'), {
-        consumed: {{ daily_totals.fat | round(1) }},
-        remaining: Math.max(0, {{ user_goal.fat_goal if user_goal else 0 }} - {{ daily_totals.fat | round(1) }}),
-        goal: {{ user_goal.fat_goal if user_goal else 0 }}
-    });
-
-    createDoughnutChart(document.getElementById('carbChart').getContext('2d'), {
-        consumed: {{ daily_totals.carbohydrates | round(1) }},
-        remaining: Math.max(0, {{ user_goal.carb_goal if user_goal else 0 }} - {{ daily_totals.carbohydrates | round(1) }}),
-        goal: {{ user_goal.carb_goal if user_goal else 0 }}
-    });
-</script>
+  </script>
 </body>
 </html>

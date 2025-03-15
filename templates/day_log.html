@@ -1,53 +1,109 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daglig logg</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logg for {{ selected_date }}</title>
+
+  <!-- Lenke til CSS (samme som index) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- PWA, ikoner, etc. (valgfritt) -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}"/>
+  <meta name="theme-color" content="#4CAF50"/>
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}"/>
 </head>
 <body>
-    <header>
-        <nav>
-            <a href="{{ url_for('index') }}">Hjem</a> |
-            <a href="{{ url_for('set_goal') }}">Sett Mål</a> |
-            <a href="{{ url_for('logout') }}">Logg ut</a>
-        </nav>
-    </header>
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <a class="app-title" href="{{ url_for('index') }}">Kaloriteller</a>
+      <!-- Desktop-meny -->
+      <div class="nav-links">
+        <a href="{{ url_for('index') }}">Hjem</a>
+        <a href="{{ url_for('day_log', date=selected_date.isoformat()) }}">Se logg</a>
+        <a href="{{ url_for('logout') }}">Logg ut</a>
+        <a href="{{ url_for('set_goal') }}">Sett Mål</a>
+        <a href="{{ url_for('manage_products') }}">Administrer Produkter</a>
+      </div>
+      <button class="hamburger" id="hamburgerBtn">&#9776;</button>
+    </div>
+  </header>
 
-    <main>
-        <h1>Logg for <span style="color: green;">{{ selected_date }}</span></h1>
+  <!-- Mobilmeny -->
+  <nav class="mobile-nav" id="mobileNav">
+    <a href="{{ url_for('index') }}">Hjem</a>
+    <a href="{{ url_for('day_log', date=selected_date.isoformat()) }}">Se logg</a>
+    <a href="{{ url_for('logout') }}">Logg ut</a>
+    <a href="{{ url_for('set_goal') }}">Sett Mål</a>
+    <a href="{{ url_for('manage_products') }}">Administrer Produkter</a>
+  </nav>
 
-        <p>
-            <a href="{{ url_for('day_log', date=(selected_date - timedelta(days=1)).isoformat()) }}">Forrige dag</a> |
-            <a href="{{ url_for('day_log', date=(selected_date + timedelta(days=1)).isoformat()) }}">Neste dag</a>
-        </p>
+  <main>
+    <!-- Tittel -->
+    <h1>Logg for {{ selected_date }}</h1>
+    <p>
+      <a href="{{ url_for('day_log', date=prev_date_str) }}">Forrige dag</a> |
+      <a href="{{ url_for('day_log', date=next_date_str) }}">Neste dag</a>
+    </p>
 
-        <h2>Daglig total:</h2>
-        <ul>
-            <li>Kalorier: {{ day_totals.calories | round(1) }}</li>
-            <li>Proteiner: {{ day_totals.proteins | round(1) }}g</li>
-            <li>Fett: {{ day_totals.fat | round(1) }}g</li>
-            <li>Karbohydrater: {{ day_totals.carbohydrates | round(1) }}g</li>
-        </ul>
+    <!-- Kort 1: Dagens Totalt -->
+    <section class="card">
+      <h2>Dagens Totalt</h2>
+      <p>Kalorier: {{ day_totals.calories | round(1) }}</p>
+      <p>Proteiner: {{ day_totals.proteins | round(1) }}</p>
+      <p>Fett: {{ day_totals.fat | round(1) }}</p>
+      <p>Karbohydrater: {{ day_totals.carbohydrates | round(1) }}</p>
+    </section>
 
-        <h2>Måloppnåelse for <span style="color: blue;">{{ goal_type }}</span>:</h2>
-        <ul>
-            <li style="color: {% if '✅' in goal_feedback['Kalorier'] %}green{% else %}red{% endif %};">
-                <strong>Kalorimål:</strong> {{ goal_feedback["Kalorier"] }}
+    <!-- Kort 2: Vurdering av dagens mål -->
+    <section class="card">
+      <h2>Vurdering av dagens mål</h2>
+      <p>Kalorier: {{ goal_feedback["Kalorier"] }}</p>
+      <p>Proteiner: {{ goal_feedback["Proteiner"] }}</p>
+      <p>Oppsummering: {{ goal_feedback["Total"] }}</p>
+    </section>
+
+    <!-- Kort 3: Framgang -->
+    <section class="card">
+      <h2>Framgang</h2>
+      <p>Du har logget {{ goal_tracking.total_days }} dager totalt.</p>
+      <p>Av disse har {{ goal_tracking.days_met }} dager møtt målene.</p>
+    </section>
+
+    <!-- Kort 4: Dagens matvarer -->
+    <section class="card">
+      <h2>Dagens matvarer</h2>
+      {% if day_log.entries %}
+        <ul class="item-list">
+          {% for entry in day_log.entries %}
+            <li>
+              <strong>{{ entry.name }}</strong> 
+              ({{ entry.weight }} g):
+              {{ entry.calories | round(1) }} kcal,
+              {{ entry.proteins | round(1) }}g protein,
+              {{ entry.fat | round(1) }}g fett,
+              {{ entry.carbohydrates | round(1) }}g karbohydrater
+
+              <form method="POST" action="{{ url_for('delete_daily_entry', entry_id=entry.id) }}" style="display:inline;">
+                <button type="submit" class="btn-red">Slett</button>
+              </form>
             </li>
-            <li style="color: {% if '✅' in goal_feedback['Proteiner'] %}green{% else %}red{% endif %};">
-                <strong>Proteinmål:</strong> {{ goal_feedback["Proteiner"] }}
-            </li>
+          {% endfor %}
         </ul>
+      {% else %}
+        <p>Ingen matvarer logget denne dagen.</p>
+      {% endif %}
+    </section>
+  </main>
 
-        <h3 style="color: {% if '✅' in goal_feedback['Total'] %}green{% else %}orange{% endif %};">
-            {{ goal_feedback["Total"] }}
-        </h3>
-
-        <h2>Statistikk:</h2>
-        <p>Du har truffet målene dine <strong>{{ goal_tracking.days_met }}</strong> av <strong>{{ goal_tracking.total_days }}</strong> dager.</p>
-        <progress value="{{ goal_tracking.days_met }}" max="{{ goal_tracking.total_days }}"></progress>
-    </main>
+  <!-- Hamburger-meny-script -->
+  <script>
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    hamburgerBtn.addEventListener('click', () => {
+      mobileNav.classList.toggle('open');
+    });
+  </script>
 </body>
 </html>

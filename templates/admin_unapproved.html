@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ugodkjente Produkter</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- Header med hamburger -->
+  <header>
+    <div class="header-inner">
+      <a class="app-title" href="{{ url_for('index') }}">Kaloriteller</a>
+      <div class="nav-links">
+        <a href="{{ url_for('index') }}">Hjem</a>
+        <a href="{{ url_for('logout') }}">Logg ut</a>
+      </div>
+      <button class="hamburger" id="hamburgerBtn">&#9776;</button>
+    </div>
+  </header>
+
+  <!-- Mobilmeny -->
+  <nav class="mobile-nav" id="mobileNav">
+    <a href="{{ url_for('index') }}">Hjem</a>
+    <a href="{{ url_for('logout') }}">Logg ut</a>
+  </nav>
+
+  <main>
+    <section class="card manage-products-list">
+      <h2>Ugodkjente Produkter</h2>
+
+      {% if products %}
+        <div class="product-grid">
+          {% for p in products %}
+            <div class="product-card">
+
+              <!-- Produktinfo -->
+              <div class="product-card-content">
+                <label>Navn:</label>
+                <p>{{ p.name }}</p>
+
+                <label>Vekt (g):</label>
+                <p>{{ p.weight }}</p>
+
+                <label>Kalorier (beregnet):</label>
+                <p>{{ p.calories | round(2) }} kcal</p>
+
+                <!-- Proteiner per 100g -->
+                <label>Proteiner per 100g (g):</label>
+                {% if p.weight and p.weight > 0 %}
+                  <p>{{ (p.proteins / p.weight * 100) | round(2) }}</p>
+                {% else %}
+                  <p>Ukjent</p>
+                {% endif %}
+
+                <!-- Fett per 100g -->
+                <label>Fett per 100g (g):</label>
+                {% if p.weight and p.weight > 0 %}
+                  <p>{{ (p.fat / p.weight * 100) | round(2) }}</p>
+                {% else %}
+                  <p>Ukjent</p>
+                {% endif %}
+
+                <!-- Karbohydrater per 100g -->
+                <label>Karbohydrater per 100g (g):</label>
+                {% if p.weight and p.weight > 0 %}
+                  <p>{{ (p.carbohydrates / p.weight * 100) | round(2) }}</p>
+                {% else %}
+                  <p>Ukjent</p>
+                {% endif %}
+
+                <label>Bilde:</label>
+                {% if p.image %}
+                  <img src="{{ url_for('static', filename=p.image) }}"
+                       alt="Produktbilde"
+                       class="manage-product-img">
+                {% else %}
+                  <img src="{{ url_for('static', filename='uploads/default_image.png') }}"
+                       alt="Standardbilde"
+                       class="manage-product-img">
+                {% endif %}
+
+                <label>Brukeropprettet?</label>
+                <p>{{ "Ja" if p.created_by_user else "Nei" }}</p>
+              </div>
+
+              <!-- Handlinger -->
+              <div class="product-card-actions">
+                <!-- Godkjenn -->
+                <form action="{{ url_for('approve_product', product_id=p.id) }}" method="POST" style="display:inline;">
+                  <button type="submit" class="btn btn-success">Godkjenn</button>
+                </form>
+
+                <!-- Slett -->
+                <form action="{{ url_for('delete_product', product_id=p.id) }}" method="POST" style="display:inline;">
+                  <button type="submit" class="btn btn-danger">Slett</button>
+                </form>
+              </div>
+
+            </div> <!-- /product-card -->
+          {% endfor %}
+        </div> <!-- /product-grid -->
+      {% else %}
+        <p>Ingen produkter venter på godkjenning.</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <!-- Hamburger-meny script -->
+  <script>
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+
+    hamburgerBtn.addEventListener('click', () => {
+      mobileNav.classList.toggle('open');
+    });
+  </script>
+</body>
+</html>

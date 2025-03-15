@@ -31,8 +31,11 @@
 
             <label for="goal_type">Måltype:</label>
             <select id="goal_type" name="goal_type" required>
-                <option value="Cutting">Gå ned i vekt</option>
-                <option value="Bulking">Gå opp i vekt</option>
+                <!-- "Cutting" → "Kaloriunderskudd" -->
+                <option value="Kaloriunderskudd">Kaloriunderskudd (gå ned i vekt)</option>
+                <!-- "Bulking" → "Kalorioverskudd" -->
+                <option value="Kalorioverskudd">Kalorioverskudd (gå opp i vekt)</option>
+                <!-- "Vedlikehold" kan beholdes som før -->
                 <option value="Vedlikehold">Vedlikehold vekt</option>
             </select>
             <br>
