@@ -28,9 +28,9 @@ DEBOUNCE  = 200  # ms
 # ──────────────────────────────
 # 3) Wi-Fi-innstillinger (kun Pico W)
 # ──────────────────────────────
-SSID    = 'Ditt_SSID'
-PASSWORD= 'Ditt_Passord'
-API_URL = 'http://dinserver.no/api/weight'  # endre til ditt endepunkt
+SSID    = '********'
+PASSWORD= '********'
+API_URL = 'https://g3hmzvj1-3000.euw.devtunnels.ms/'  # endre til ditt endepunkt
 
 def connect_wifi(timeout_ms=10000):
     wlan = network.WLAN(network.STA_IF)
