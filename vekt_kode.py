@@ -11,7 +11,7 @@ import time
 # ──────────────────────────────
 hx = HX711(d_out=5, pd_sck=4)
 
-# Dine siste kalibreringsverdier
+# siste kalibreringsverdier
 offset = 5858
 calibration_factor = 430.7473
 
@@ -30,7 +30,7 @@ DEBOUNCE  = 200  # ms
 # ──────────────────────────────
 SSID    = '********'
 PASSWORD= '********'
-API_URL = 'https://g3hmzvj1-3000.euw.devtunnels.ms/'  # endre til ditt endepunkt
+API_URL = 'https://g3hmzvj1-3000.euw.devtunnels.ms/' 
 
 def connect_wifi(timeout_ms=10000):
     wlan = network.WLAN(network.STA_IF)
