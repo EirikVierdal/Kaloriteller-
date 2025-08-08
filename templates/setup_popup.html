@@ -1,48 +1,67 @@
 <div id="setup-modal" class="modal" style="display:block;">
     <div class="modal-content">
-        <h2>Førstegangsoppsett av mål</h2>
-        <form id="setup-form">
-            <label for="gender">Kjønn:</label>
-            <select id="gender" name="gender" required>
-                <option value="Mann">Mann</option>
-                <option value="Kvinne">Kvinne</option>
-            </select>
-            <br>
-
-            <label for="age">Alder:</label>
-            <input type="number" id="age" name="age" required placeholder="F.eks. 25">
-            <br>
-
-            <label for="height">Høyde (cm):</label>
-            <input type="number" id="height" name="height" required placeholder="F.eks. 180">
-            <br>
-
-            <label for="weight">Kroppsvekt (kg):</label>
-            <input type="number" id="weight" name="weight" required placeholder="F.eks. 75">
-            <br>
-
-            <label for="activity_level">Aktivitetsnivå:</label>
-            <select id="activity_level" name="activity_level" required>
-                <option value="Lite aktiv">Lite aktiv</option>
-                <option value="Moderat aktiv">Moderat aktiv</option>
-                <option value="Veldig aktiv">Veldig aktiv</option>
-            </select>
-            <br>
-
-            <label for="goal_type">Måltype:</label>
-            <select id="goal_type" name="goal_type" required>
-                <!-- "Cutting" → "Kaloriunderskudd" -->
-                <option value="Kaloriunderskudd">Kaloriunderskudd (gå ned i vekt)</option>
-                <!-- "Bulking" → "Kalorioverskudd" -->
-                <option value="Kalorioverskudd">Kalorioverskudd (gå opp i vekt)</option>
-                <!-- "Vedlikehold" kan beholdes som før -->
-                <option value="Vedlikehold">Vedlikehold vekt</option>
-            </select>
-            <br>
-
-            <button type="button" id="save-goals-btn">Lagre</button>
-        </form>
+      <h2>Førstegangsoppsett av mål</h2>
+      <form id="setup-form">
+        <label for="gender">Kjønn:</label>
+        <select id="gender" name="gender" required>
+          <option value="Mann">Mann</option>
+          <option value="Kvinne">Kvinne</option>
+        </select>
+        <br>
+  
+        <label for="age">Alder:</label>
+        <input
+          type="number"
+          step="any"
+          id="age"
+          name="age"
+          required
+          placeholder="F.eks. 25"
+        >
+        <br>
+  
+        <label for="height">Høyde (cm):</label>
+        <input
+          type="number"
+          step="any"
+          id="height"
+          name="height"
+          required
+          placeholder="F.eks. 180"
+        >
+        <br>
+  
+        <label for="weight">Kroppsvekt (kg):</label>
+        <input
+          type="number"
+          step="any"
+          id="weight"
+          name="weight"
+          required
+          placeholder="F.eks. 75"
+        >
+        <br>
+  
+        <label for="activity_level">Aktivitetsnivå:</label>
+        <select id="activity_level" name="activity_level" required>
+          <option value="Lite aktiv">Lite aktiv</option>
+          <option value="Moderat aktiv">Moderat aktiv</option>
+          <option value="Veldig aktiv">Veldig aktiv</option>
+        </select>
+        <br>
+  
+        <label for="goal_type">Måltype:</label>
+        <select id="goal_type" name="goal_type" required>
+          <option value="Kaloriunderskudd">Kaloriunderskudd (gå ned i vekt)</option>
+          <option value="Kalorioverskudd">Kalorioverskudd (gå opp i vekt)</option>
+          <option value="Vedlikehold">Vedlikehold vekt</option>
+        </select>
+        <br>
+  
+        <button type="button" id="save-goals-btn">Lagre</button>
+      </form>
     </div>
-</div>
-
-<script src="{{ url_for('static', filename='setup.js') }}"></script>
+  </div>
+  
+  <script src="{{ url_for('static', filename='setup.js') }}"></script>
+  

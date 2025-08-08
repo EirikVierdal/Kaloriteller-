@@ -10,36 +10,21 @@ import json
 from sqlalchemy.orm import Session
 import pprint
 
-# API-nøkkel for Kassal, med fallback-verdi hvis miljøvariabelen ikke er satt
 KASSAL_API_KEY = os.getenv("KASSAL_API_KEY", "RSoYsw9xCYwH5pPWh3zsWYSw50gi9nLM79MIz1xv")
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.secret_key = 'your_secret_key'
 
-# **Oppdatert PostgreSQL database URI**
+# *Oppdatert PostgreSQL database URI*
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Eirik2006@localhost:5432/Kaloriteller")
-
-# **Fix for Heroku sitt gamle "postgres://" format**
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialiser database, migrering og innlogging
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-
-# **Test at databasen er tilgjengelig**
-try:
-    with app.app_context():
-        db.create_all()  # Forsikrer at tabeller eksisterer lokalt
-        print("✅ Database connection successful!")
-except Exception as e:
-    print(f"❌ Database connection failed: {e}")
 
 # Models
 
@@ -338,43 +323,33 @@ def set_goal():
     if request.method == 'POST':
         # Sjekk om brukeren sender inn kalorimål-skjema
         if 'calorie_goal' in request.form:
-            calorie_goal = request.form.get('calorie_goal', '').strip()
-            protein_goal = request.form.get('protein_goal', '').strip()
-            fat_goal = request.form.get('fat_goal', '').strip()
-            carb_goal = request.form.get('carb_goal', '').strip()
-            # "goal_type" kan nå være "Kaloriunderskudd", "Kalorioverskudd" eller "Vedlikehold"
+            cal_str  = request.form.get('calorie_goal', '').strip()
+            prot_str = request.form.get('protein_goal', '').strip()
+            fat_str  = request.form.get('fat_goal', '').strip()
+            carb_str = request.form.get('carb_goal', '').strip()
             goal_type = request.form.get('goal_type', '').strip()
 
-            # Konverter til float hvis mulig
-            calorie_goal = float(calorie_goal) if calorie_goal else None
-            protein_goal = float(protein_goal) if protein_goal else None
-            fat_goal = float(fat_goal) if fat_goal else None
-            carb_goal = float(carb_goal) if carb_goal else None
+            # Konverter til float eller None
+            cal  = float(cal_str)  if cal_str  else None
+            prot = float(prot_str) if prot_str else None
+            fat  = float(fat_str)  if fat_str  else None
+            carb = float(carb_str) if carb_str else None
 
             try:
-                # Hvis ett av feltene er None, beregn det
-                if calorie_goal is None:
-                    calorie_goal = (protein_goal * 4) + (fat_goal * 9) + (carb_goal * 4)
-                elif protein_goal is None:
-                    protein_goal = (calorie_goal - (fat_goal * 9) - (carb_goal * 4)) / 4
-                elif fat_goal is None:
-                    fat_goal = (calorie_goal - (protein_goal * 4) - (carb_goal * 4)) / 9
-                elif carb_goal is None:
-                    carb_goal = (calorie_goal - (protein_goal * 4) - (fat_goal * 9)) / 4
+                # Bruk hjelpefunksjonen solve_macros
+                solved_cal, solved_p, solved_f, solved_c = solve_macros(
+                    cal=cal,
+                    p=prot,
+                    f=fat,
+                    c=carb
+                )
 
-                # Valider
-                if any(val < 0 for val in [protein_goal, fat_goal, carb_goal]):
-                    raise ValueError("Verdiene du oppga resulterer i negative makronæringsstoffer.")
-                if (protein_goal * 4) + (fat_goal * 9) + (carb_goal * 4) > calorie_goal:
-                    raise ValueError("Makronæringsstoffene overskrider kalorimålet.")
-
-                # Oppdater UserGoal
-                user_goal.calorie_goal = round(calorie_goal, 1)
-                user_goal.protein_goal = round(protein_goal, 1)
-                user_goal.fat_goal = round(fat_goal, 1)
-                user_goal.carb_goal = round(carb_goal, 1)
-                # Oppdater til "Kaloriunderskudd", "Kalorioverskudd" eller "Vedlikehold"
-                user_goal.goal_type = goal_type
+                # Oppdater user_goal
+                user_goal.calorie_goal = solved_cal
+                user_goal.protein_goal = solved_p
+                user_goal.fat_goal     = solved_f
+                user_goal.carb_goal    = solved_c
+                user_goal.goal_type    = goal_type  # "Kaloriunderskudd"/"Kalorioverskudd"/"Vedlikehold"
 
                 db.session.commit()
                 flash("Målene dine er oppdatert!", "success")
@@ -406,6 +381,7 @@ def set_goal():
     weight_data = [{"date": w.date.isoformat(), "weight": w.weight} for w in weight_logs]
 
     return render_template('set_goal.html', goal=user_goal, weight_data=weight_data)
+
 
 
 # Login Manager
@@ -441,6 +417,44 @@ def adjust_for_goal(tdee, weight, goal_type):
     carbs = (daily_calories - (protein * 4 + fat * 9)) / 4
 
     return daily_calories, protein, fat, carbs
+def solve_macros(cal=None, p=None, f=None, c=None):
+    # Putt verdier i en dict
+    values = {"cal": cal, "p": p, "f": f, "c": c}
+    # Filtrer ut None
+    filled = {k: v for k, v in values.items() if v is not None}
+    count_filled = len(filled)
+
+    # 4 felt fylt inn → sjekk konsistens
+    if count_filled == 4:
+        total_cals = p*4 + f*9 + c*4
+        if abs(total_cals - cal) > 0.0001:
+            raise ValueError("Makronæringsstoffene samsvarer ikke med kalorimålet.")
+        # Returner rundet
+        return (round(cal,1), round(p,1), round(f,1), round(c,1))
+
+    # 3 felt fylt inn → beregn det fjerde
+    if count_filled == 3:
+        if cal is None:
+            cal = p*4 + f*9 + c*4
+        elif p is None:
+            p = (cal - f*9 - c*4) / 4
+        elif f is None:
+            f = (cal - p*4 - c*4) / 9
+        elif c is None:
+            c = (cal - p*4 - f*9) / 4
+
+        if any(x < 0 for x in [cal, p, f, c]):
+            raise ValueError("Verdiene du oppga resulterer i negative tall.")
+
+        total_cals = p*4 + f*9 + c*4
+        if abs(total_cals - cal) > 0.0001:
+            raise ValueError("Makronæringsstoffene samsvarer ikke med kalorimålet.")
+
+        return (round(cal,1), round(p,1), round(f,1), round(c,1))
+
+    # Færre enn 3 felt → umulig å løse entydig
+    raise ValueError("Du må fylle inn minst tre av feltene (kalorier, protein, fett, karbohydrater).")
+
 
 # Rute for førstegangsoppsett-popup
 @app.route('/setup_user', methods=['GET', 'POST'])
